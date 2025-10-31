@@ -8,25 +8,21 @@ export type Paragraph = {
   lastMatchedKeywords?: string[]
 }
 
-export type ParagraphGroup = {
-  id: string
-  paragraphs: Paragraph[]
-}
-
 export type AppState = {
-  groups: ParagraphGroup[]
+  paragraphs: Paragraph[]
   jobPostingRaw: string
   jobPostingHTML: string
   coverLetterHTML: string
   jobEditorHidden: boolean
+  darkMode: boolean
 }
 
 export type AppActions = {
-  addGroup: () => void
-  updateParagraph: (groupId: string, paragraphId: string, patch: Partial<Paragraph> | ((prev: Paragraph) => Partial<Paragraph>)) => void
-  addKeyword: (groupId: string, paragraphId: string, keyword: string) => void
-  removeKeyword: (groupId: string, paragraphId: string, keyword: string) => void
-  reorderGroups: (fromIndex: number, toIndex: number) => void
+  addParagraph: () => void
+  updateParagraph: (paragraphId: string, patch: Partial<Paragraph> | ((prev: Paragraph) => Partial<Paragraph>)) => void
+  addKeyword: (paragraphId: string, keyword: string) => void
+  removeKeyword: (paragraphId: string, keyword: string) => void
+  reorderParagraphs: (fromIndex: number, toIndex: number) => void
   setJobPostingRaw: (raw: string) => void
   analyzeNow: () => void
   generateCoverLetter: () => void
@@ -35,4 +31,5 @@ export type AppActions = {
   loadFromFile: (file: File) => Promise<void>
   pasteFromClipboard: () => Promise<void>
   analyzeCurrentPage: () => Promise<void>
+  toggleDarkMode: () => void
 }

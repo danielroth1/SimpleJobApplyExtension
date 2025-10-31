@@ -1,7 +1,11 @@
-import { AppState, ParagraphGroup } from './types'
+import { AppState, Paragraph } from './types'
 
-export function hslForIndex(idx: number): string {
+export function hslForIndex(idx: number, darkMode: boolean = false): string {
   const hue = (idx * 47) % 360
+  if (darkMode) {
+    // Darker colors with better contrast for dark mode
+    return `hsl(${hue} 70% 35%)`
+  }
   return `hsl(${hue} 80% 85%)`
 }
 
@@ -18,7 +22,7 @@ function escapeHtml(str: string): string {
   })
 }
 
-export function highlightJobPosting(raw: string, groups: ParagraphGroup[]): { html: string, matched: Map<string, Set<string>> } {
+export function highlightJobPosting(raw: string, paragraphs: Paragraph[], darkMode: boolean = false): { html: string, matched: Map<string, Set<string>> } {
   const escaped = escapeHtml(raw)
   // Build a combined regex map by group
   let html = escaped
@@ -30,27 +34,23 @@ export function highlightJobPosting(raw: string, groups: ParagraphGroup[]): { ht
   const matches: Match[] = []
 
   const lower = raw.toLowerCase()
-  let paraColorIdx = 0
-  groups.forEach((g) => {
-    g.paragraphs.forEach(p => {
-      const set = new Set<string>()
-      p.keywords.forEach(kw => {
-        const kwTrim = kw.trim()
-        if (!kwTrim) return
-        const kwLower = kwTrim.toLowerCase()
-        // Find all occurrences (simple substring)
-        let from = 0
-        while (true) {
-          const idx = lower.indexOf(kwLower, from)
-          if (idx === -1) break
-          matches.push({ start: idx, end: idx + kwLower.length, colorIdx: paraColorIdx, keyword: kwTrim })
-          set.add(kwTrim)
-          from = idx + kwLower.length
-        }
-      })
-      if (set.size) matched.set(p.id, set)
-      paraColorIdx += 1
+  paragraphs.forEach((p, paraColorIdx) => {
+    const set = new Set<string>()
+    p.keywords.forEach(kw => {
+      const kwTrim = kw.trim()
+      if (!kwTrim) return
+      const kwLower = kwTrim.toLowerCase()
+      // Find all occurrences (simple substring)
+      let from = 0
+      while (true) {
+        const idx = lower.indexOf(kwLower, from)
+        if (idx === -1) break
+        matches.push({ start: idx, end: idx + kwLower.length, colorIdx: paraColorIdx, keyword: kwTrim })
+        set.add(kwTrim)
+        from = idx + kwLower.length
+      }
     })
+    if (set.size) matched.set(p.id, set)
   })
 
   // Merge overlapping matches preferring longer spans
@@ -69,7 +69,7 @@ export function highlightJobPosting(raw: string, groups: ParagraphGroup[]): { ht
   let cursor = 0
   for (const m of merged) {
     out += escapeHtml(raw.slice(cursor, m.start))
-    const color = hslForIndex(m.colorIdx)
+    const color = hslForIndex(m.colorIdx, darkMode)
     const inner = escapeHtml(raw.slice(m.start, m.end))
     out += `<span style="background:${color}">${inner}</span>`
     cursor = m.end
@@ -80,20 +80,18 @@ export function highlightJobPosting(raw: string, groups: ParagraphGroup[]): { ht
   return { html, matched }
 }
 
-export function generateCoverLetterHTML(groups: ParagraphGroup[]): string {
-  // Iterate groups then paragraphs; include autoInclude or included
+export function generateCoverLetterHTML(paragraphs: Paragraph[]): string {
+  // Iterate paragraphs; include autoInclude or included
   const parts: string[] = []
-  groups.forEach(g => {
-    g.paragraphs.forEach(p => {
-      const include = p.included || p.autoInclude
-      if (!include) return
-      const content = p.html || ''
-      if (p.noLineBreak && parts.length) {
-        parts[parts.length - 1] = parts[parts.length - 1] + content
-      } else {
-        parts.push(content)
-      }
-    })
+  paragraphs.forEach(p => {
+    const include = p.included || p.autoInclude
+    if (!include) return
+    const content = p.html || ''
+    if (p.noLineBreak && parts.length) {
+      parts[parts.length - 1] = parts[parts.length - 1] + content
+    } else {
+      parts.push(content)
+    }
   })
   // Join with a single blank line between blocks
   return parts.join('<br/><br/>')

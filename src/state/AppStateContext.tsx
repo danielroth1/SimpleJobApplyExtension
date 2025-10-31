@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { AppActions, AppState, Paragraph, ParagraphGroup } from './types'
+import { AppActions, AppState, Paragraph } from './types'
 import { cloneState, generateCoverLetterHTML, highlightJobPosting } from './logic'
 import { loadStateFromStorage, saveStateToStorage, downloadJson, readJsonFile, getPageText, readClipboardText } from '@/utils/storage'
 
@@ -8,18 +8,14 @@ const AppStateContext = createContext<{ state: AppState, actions: AppActions } |
 function uuid(): string { return Math.random().toString(36).slice(2) }
 
 const defaultState: AppState = {
-  groups: [
-    {
-      id: uuid(),
-      paragraphs: [
-        { id: uuid(), html: '<p>Dear Hiring Manager,</p>', keywords: ['React', 'TypeScript'], noLineBreak: false, autoInclude: false, included: false }
-      ]
-    }
+  paragraphs: [
+    { id: uuid(), html: '<p>Dear Hiring Manager,</p>', keywords: ['React', 'TypeScript'], noLineBreak: false, autoInclude: false, included: false }
   ],
   jobPostingRaw: '',
   jobPostingHTML: '',
   coverLetterHTML: '<p></p>',
   jobEditorHidden: false,
+  darkMode: false,
 }
 
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
@@ -38,19 +34,17 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(t)
   }, [state])
 
-  const addGroup = useCallback(() => {
+  const addParagraph = useCallback(() => {
     setState(prev => ({
       ...prev,
-      groups: [...prev.groups, { id: uuid(), paragraphs: [{ id: uuid(), html: '<p></p>', keywords: [], noLineBreak: false, autoInclude: false, included: false }] }]
+      paragraphs: [...prev.paragraphs, { id: uuid(), html: '<p></p>', keywords: [], noLineBreak: false, autoInclude: false, included: false }]
     }))
   }, [])
 
-  const updateParagraph = useCallback((groupId: string, paragraphId: string, patch: Partial<Paragraph> | ((prev: Paragraph) => Partial<Paragraph>)) => {
+  const updateParagraph = useCallback((paragraphId: string, patch: Partial<Paragraph> | ((prev: Paragraph) => Partial<Paragraph>)) => {
     setState(prev => {
       const next = cloneState(prev)
-      const g = next.groups.find(g => g.id === groupId)
-      if (!g) return prev
-      const p = g.paragraphs.find(p => p.id === paragraphId)
+      const p = next.paragraphs.find(p => p.id === paragraphId)
       if (!p) return prev
       const resolvedPatch = typeof patch === 'function' ? (patch as (prev: Paragraph) => Partial<Paragraph>)(p) : patch
       Object.assign(p, resolvedPatch)
@@ -58,27 +52,25 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     })
   }, [])
 
-  const addKeyword = useCallback((groupId: string, paragraphId: string, keyword: string) => {
-    updateParagraph(groupId, paragraphId, (prev: Paragraph) => ({ keywords: Array.from(new Set([...(prev.keywords || []), keyword])) }))
+  const addKeyword = useCallback((paragraphId: string, keyword: string) => {
+    updateParagraph(paragraphId, (prev: Paragraph) => ({ keywords: Array.from(new Set([...(prev.keywords || []), keyword])) }))
   }, [updateParagraph])
 
-  const removeKeyword = useCallback((groupId: string, paragraphId: string, keyword: string) => {
+  const removeKeyword = useCallback((paragraphId: string, keyword: string) => {
     setState(prev => {
       const next = cloneState(prev)
-      const g = next.groups.find(g => g.id === groupId)
-      if (!g) return prev
-      const p = g.paragraphs.find(p => p.id === paragraphId)
+      const p = next.paragraphs.find(p => p.id === paragraphId)
       if (!p) return prev
       p.keywords = p.keywords.filter(k => k !== keyword)
       return next
     })
   }, [])
 
-  const reorderGroups = useCallback((fromIndex: number, toIndex: number) => {
+  const reorderParagraphs = useCallback((fromIndex: number, toIndex: number) => {
     setState(prev => {
       const next = cloneState(prev)
-      const [moved] = next.groups.splice(fromIndex, 1)
-      next.groups.splice(toIndex, 0, moved)
+      const [moved] = next.paragraphs.splice(fromIndex, 1)
+      next.paragraphs.splice(toIndex, 0, moved)
       return next
     })
   }, [])
@@ -90,28 +82,26 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const analyzeNow = useCallback(() => {
     setState(prev => {
       const next = cloneState(prev)
-      const { html, matched } = highlightJobPosting(next.jobPostingRaw, next.groups)
+      const { html, matched } = highlightJobPosting(next.jobPostingRaw, next.paragraphs, next.darkMode)
       next.jobPostingHTML = html
       // Update included flags and matched keywords
-      next.groups.forEach((g) => {
-        g.paragraphs.forEach(p => {
-          const mset = matched.get(p.id) || new Set<string>()
-          const paragraphMatched = p.keywords.filter(k => mset.has(k))
-          p.lastMatchedKeywords = paragraphMatched
-          if (paragraphMatched.length > 0) {
-            p.included = true
-          }
-          if (p.autoInclude) p.included = true
-        })
+      next.paragraphs.forEach(p => {
+        const mset = matched.get(p.id) || new Set<string>()
+        const paragraphMatched = p.keywords.filter(k => mset.has(k))
+        p.lastMatchedKeywords = paragraphMatched
+        if (paragraphMatched.length > 0) {
+          p.included = true
+        }
+        if (p.autoInclude) p.included = true
       })
       // Generate cover letter automatically after analysis
-      next.coverLetterHTML = generateCoverLetterHTML(next.groups)
+      next.coverLetterHTML = generateCoverLetterHTML(next.paragraphs)
       return next
     })
   }, [])
 
   const generateCoverLetter = useCallback(() => {
-    setState(prev => ({ ...prev, coverLetterHTML: generateCoverLetterHTML(prev.groups) }))
+    setState(prev => ({ ...prev, coverLetterHTML: generateCoverLetterHTML(prev.paragraphs) }))
   }, [])
 
   const setJobEditorHidden = useCallback((hidden: boolean) => setState(prev => ({ ...prev, jobEditorHidden: hidden })), [])
@@ -140,14 +130,18 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     }
   }, [setJobPostingRaw, analyzeNow])
 
+  const toggleDarkMode = useCallback(() => {
+    setState(prev => ({ ...prev, darkMode: !prev.darkMode }))
+  }, [])
+
   const value = useMemo(() => ({
     state,
     actions: {
-      addGroup,
+      addParagraph,
       updateParagraph,
       addKeyword,
       removeKeyword,
-      reorderGroups,
+      reorderParagraphs,
       setJobPostingRaw,
       analyzeNow,
       generateCoverLetter,
@@ -156,8 +150,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       loadFromFile,
       pasteFromClipboard,
       analyzeCurrentPage,
+      toggleDarkMode,
     }
-  }), [state, addGroup, updateParagraph, addKeyword, removeKeyword, reorderGroups, setJobPostingRaw, analyzeNow, generateCoverLetter, setJobEditorHidden, saveToFile, loadFromFile, pasteFromClipboard, analyzeCurrentPage])
+  }), [state, addParagraph, updateParagraph, addKeyword, removeKeyword, reorderParagraphs, setJobPostingRaw, analyzeNow, generateCoverLetter, setJobEditorHidden, saveToFile, loadFromFile, pasteFromClipboard, analyzeCurrentPage, toggleDarkMode])
 
   return (
     <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>

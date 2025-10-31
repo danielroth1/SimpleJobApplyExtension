@@ -1,40 +1,47 @@
-import React, { useMemo, useState } from 'react'
+import React from 'react'
 import { useAppState } from '@/state/AppStateContext'
 import ParagraphItem from './ParagraphItem'
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 
 export default function ParagraphGroups() {
   const { state, actions } = useAppState()
-  const [dragIndex, setDragIndex] = useState<number | null>(null)
+
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination) return
+    if (result.source.index === result.destination.index) return
+    actions.reorderParagraphs(result.source.index, result.destination.index)
+  }
 
   return (
-    <div className="panel">
-      <h3>Paragraphs</h3>
-      <div className="content">
-        <div className="groups">
-          {state.groups.map((g, i) => (
-            <div
-              key={g.id}
-              className="group"
-              draggable
-              onDragStart={() => setDragIndex(i)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => {
-                if (dragIndex === null || dragIndex === i) return
-                actions.reorderGroups(dragIndex, i)
-                setDragIndex(null)
-              }}
-            >
-              <div className="drag-handle" title="Drag to reorder">⠿</div>
-              {/* One drag icon per grouped container */}
-              {g.paragraphs.map((p, pj) => (
-                <ParagraphItem key={p.id} groupId={g.id} paragraph={p} colorIndex={state.groups.slice(0,i).reduce((acc, g0)=> acc + g0.paragraphs.length, 0) + pj} />
+    <div className="content">
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <Droppable droppableId="paragraphs">
+          {(provided) => (
+            <div className="paragraphs-list" {...provided.droppableProps} ref={provided.innerRef}>
+              {state.paragraphs.map((p, i) => (
+                <Draggable key={p.id} draggableId={p.id} index={i}>
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.draggableProps}
+                      className={`paragraph-wrapper ${snapshot.isDragging ? 'dragging' : ''}`}
+                    >
+                      <ParagraphItem 
+                        paragraph={p} 
+                        colorIndex={i}
+                        dragHandleProps={provided.dragHandleProps}
+                      />
+                    </div>
+                  )}
+                </Draggable>
               ))}
+              {provided.placeholder}
             </div>
-          ))}
-        </div>
-        <div>
-          <button className="add-group" onClick={actions.addGroup}>+ Add Paragraph</button>
-        </div>
+          )}
+        </Droppable>
+      </DragDropContext>
+      <div className="add-paragraph-container">
+        <button className="add-group" onClick={actions.addParagraph}>+ Add Paragraph</button>
       </div>
     </div>
   )

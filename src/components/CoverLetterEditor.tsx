@@ -5,12 +5,11 @@ export default function CoverLetterEditor() {
   const { state, actions } = useAppState()
   return (
     <div className="panel">
-      <h3>Cover Letter</h3>
+      <h3>
+        Cover Letter
+        <button className="toggle" style={{ float: 'right' }} onClick={actions.generateCoverLetter} title="Update Cover Letter">🔄</button>
+      </h3>
       <div className="content">
-        <div className="actions-row">
-          <button className="toggle" onClick={actions.generateCoverLetter}>Regenerate</button>
-          <span className="small">Includes paragraphs with Included or Auto-include flags</span>
-        </div>
         <div
           className="rte"
           contentEditable

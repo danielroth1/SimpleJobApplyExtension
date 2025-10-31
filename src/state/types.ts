@@ -15,6 +15,8 @@ export type AppState = {
   coverLetterHTML: string
   jobEditorHidden: boolean
   darkMode: boolean
+  highlightInCoverLetter: boolean
+  autoAnalyze: boolean
 }
 
 export type AppActions = {
@@ -32,4 +34,7 @@ export type AppActions = {
   pasteFromClipboard: () => Promise<void>
   analyzeCurrentPage: () => Promise<void>
   toggleDarkMode: () => void
+  toggleHighlightInCoverLetter: () => void
+  toggleAutoAnalyze: () => void
+  highlightPageKeywords: () => Promise<void>
 }

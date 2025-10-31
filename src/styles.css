@@ -58,10 +58,20 @@ body.dark-mode {
 .paragraph-wrapper.dragging { opacity: 0.5; }
 
 .paragraph-item { display: flex; gap: 8px; }
-.paragraph-sidebar { display: flex; flex-direction: column; gap: 4px; }
-.paragraph-main { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.paragraph-sidebar { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+.paragraph-main { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 
-.drag-handle-btn { padding: 4px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--input-bg); font-size: 12px; cursor: grab; color: var(--text); }
+.drag-handle-btn { 
+  padding: 8px 10px; 
+  border: 1px solid var(--border); 
+  border-radius: 6px; 
+  background: var(--input-bg); 
+  font-size: 14px; 
+  cursor: grab; 
+  color: var(--text);
+  user-select: none;
+  touch-action: none;
+}
 .drag-handle-btn:active { cursor: grabbing; }
 
 .toggle { padding: 4px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--input-bg); font-size: 12px; cursor: pointer; color: var(--text); }

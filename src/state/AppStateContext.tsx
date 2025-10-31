@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { AppActions, AppState, Paragraph } from './types'
-import { cloneState, generateCoverLetterHTML, highlightJobPosting } from './logic'
+import { cloneState, generateCoverLetterHTML, highlightJobPosting, hslForIndex } from './logic'
 import { loadStateFromStorage, saveStateToStorage, downloadJson, readJsonFile, getPageText, readClipboardText } from '@/utils/storage'
 
 const AppStateContext = createContext<{ state: AppState, actions: AppActions } | null>(null)
@@ -16,6 +16,8 @@ const defaultState: AppState = {
   coverLetterHTML: '<p></p>',
   jobEditorHidden: false,
   darkMode: false,
+  highlightInCoverLetter: true,
+  autoAnalyze: true,
 }
 
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
@@ -79,6 +81,30 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setState(prev => ({ ...prev, jobPostingRaw: raw }))
   }, [])
 
+  const highlightPageKeywords = useCallback(async () => {
+    // Send message to content script to highlight keywords on the page
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
+      if (!tab?.id) return
+      
+      // Build keyword color map
+      const keywordColorMap: Record<string, string> = {}
+      state.paragraphs.forEach((p, idx) => {
+        const color = hslForIndex(idx, state.darkMode)
+        p.keywords.forEach(kw => {
+          keywordColorMap[kw.toLowerCase()] = color
+        })
+      })
+      
+      await chrome.tabs.sendMessage(tab.id, { 
+        type: 'SIMPLE_HIGHLIGHT_KEYWORDS', 
+        keywords: keywordColorMap 
+      })
+    } catch (e) {
+      console.error('Failed to highlight keywords on page:', e)
+    }
+  }, [state.paragraphs, state.darkMode])
+
   const analyzeNow = useCallback(() => {
     setState(prev => {
       const next = cloneState(prev)
@@ -95,13 +121,15 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         if (p.autoInclude) p.included = true
       })
       // Generate cover letter automatically after analysis
-      next.coverLetterHTML = generateCoverLetterHTML(next.paragraphs)
+      next.coverLetterHTML = generateCoverLetterHTML(next.paragraphs, next.highlightInCoverLetter, next.darkMode)
       return next
     })
-  }, [])
+    // Also highlight on the actual page after state update
+    setTimeout(() => highlightPageKeywords(), 100)
+  }, [highlightPageKeywords])
 
   const generateCoverLetter = useCallback(() => {
-    setState(prev => ({ ...prev, coverLetterHTML: generateCoverLetterHTML(prev.paragraphs) }))
+    setState(prev => ({ ...prev, coverLetterHTML: generateCoverLetterHTML(prev.paragraphs, prev.highlightInCoverLetter, prev.darkMode) }))
   }, [])
 
   const setJobEditorHidden = useCallback((hidden: boolean) => setState(prev => ({ ...prev, jobEditorHidden: hidden })), [])
@@ -134,6 +162,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setState(prev => ({ ...prev, darkMode: !prev.darkMode }))
   }, [])
 
+  const toggleHighlightInCoverLetter = useCallback(() => {
+    setState(prev => ({ ...prev, highlightInCoverLetter: !prev.highlightInCoverLetter }))
+  }, [])
+
+  const toggleAutoAnalyze = useCallback(() => {
+    setState(prev => ({ ...prev, autoAnalyze: !prev.autoAnalyze }))
+  }, [])
+
   const value = useMemo(() => ({
     state,
     actions: {
@@ -151,8 +187,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       pasteFromClipboard,
       analyzeCurrentPage,
       toggleDarkMode,
+      toggleHighlightInCoverLetter,
+      toggleAutoAnalyze,
+      highlightPageKeywords,
     }
-  }), [state, addParagraph, updateParagraph, addKeyword, removeKeyword, reorderParagraphs, setJobPostingRaw, analyzeNow, generateCoverLetter, setJobEditorHidden, saveToFile, loadFromFile, pasteFromClipboard, analyzeCurrentPage, toggleDarkMode])
+  }), [state, addParagraph, updateParagraph, addKeyword, removeKeyword, reorderParagraphs, setJobPostingRaw, analyzeNow, generateCoverLetter, setJobEditorHidden, saveToFile, loadFromFile, pasteFromClipboard, analyzeCurrentPage, toggleDarkMode, toggleHighlightInCoverLetter, toggleAutoAnalyze, highlightPageKeywords])
 
   return (
     <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>

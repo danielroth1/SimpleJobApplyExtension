@@ -12,9 +12,7 @@ yarn-error.log*
 .local/
 
 # VS Code
-.vscode/
-.vscode/*-profile
-!.vscode/launch.json
+.vscode/*-profile*
 
 # macOS
 Icon

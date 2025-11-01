@@ -1,0 +1,170 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+        "name": "Webpage: Chrome + Vite Dev Server",
+        "type": "chrome",
+        "request": "launch",
+        "url": "http://localhost:5173/index.html",
+        "webRoot": "${workspaceFolder}",
+        "sourceMaps": true,
+        "sourceMapPathOverrides": {
+            "webpack:///src/*": "${webRoot}/src/*",
+            "/@fs/*": "${workspaceFolder}/*",
+            "/src/*": "${workspaceFolder}/src/*"
+        },
+        "preLaunchTask": "npm: dev",
+        "serverReadyAction": {
+            "action": "debugWithChrome",
+            "pattern": "Local:\\s+(https?://[^\\s]+)",
+            "uriFormat": "%s/index.html"
+        }
+    },
+    {
+        "name": "Webpage: Firefox + Vite Dev Server",
+        "type": "firefox",
+        "request": "launch",
+        "url": "http://localhost:5173/index.html",
+        "webRoot": "${workspaceFolder}",
+        "reAttach": true,
+        "reloadOnChange": {
+            "watch": [
+                "${workspaceFolder}/src/**/*.{ts,tsx,js,jsx}",
+                "${workspaceFolder}/src/**/*.css"
+            ]
+        },
+        "pathMappings": [
+            {
+                "url": "http://localhost:5173",
+                "path": "${workspaceFolder}"
+            },
+            {
+                "url": "http://localhost:5173/src",
+                "path": "${workspaceFolder}/src"
+            }
+        ],
+        "preLaunchTask": "npm: dev"
+    },
+    {
+        "name": "Extension: Chrome (built)",
+        "type": "chrome",
+        "request": "launch",
+        "url": "chrome://extensions",
+        "webRoot": "${workspaceFolder}/dist",
+        "runtimeArgs": [
+            "--disable-extensions-except=${workspaceFolder}/dist",
+            "--load-extension=${workspaceFolder}/dist",
+            "--user-data-dir=${workspaceFolder}/.vscode/chrome-profile-debug"
+        ],
+        "sourceMaps": true,
+        "sourceMapPathOverrides": {
+            "webpack:///./*": "${webRoot}/*",
+            "webpack:///src/*": "${webRoot}/src/*",
+            "webpack:///*": "*",
+            "webpack:///./~/*": "${webRoot}/node_modules/*"
+        },
+        "preLaunchTask": "npm: build"
+    },
+    {
+        "name": "Extension: Chrome (watch mode)",
+        "type": "chrome",
+        "request": "launch",
+        "url": "chrome://extensions",
+        "webRoot": "${workspaceFolder}/dist",
+        "runtimeArgs": [
+            "--disable-extensions-except=${workspaceFolder}/dist",
+            "--load-extension=${workspaceFolder}/dist",
+            "--user-data-dir=${workspaceFolder}/.vscode/chrome-profile-watch"
+        ],
+        "sourceMaps": true,
+        "sourceMapPathOverrides": {
+            "webpack:///./*": "${webRoot}/*",
+            "webpack:///src/*": "${webRoot}/src/*",
+            "webpack:///*": "*",
+            "webpack:///./~/*": "${webRoot}/node_modules/*"
+        },
+        "preLaunchTask": "vite:watch"
+    },
+    {
+        "name": "Extension: Firefox (built)",
+        "type": "firefox",
+        "request": "launch",
+        "addonPath": "${workspaceFolder}/dist",
+        "url": "about:debugging#/runtime/this-firefox",
+        "webRoot": "${workspaceFolder}/dist",
+        "reAttach": true,
+        "pathMappings": [
+            {
+                "url": "moz-extension://*",
+                "path": "${workspaceFolder}/dist"
+            }
+        ],
+        "preLaunchTask": "npm: build"
+    },
+    {
+        "name": "Extension: Firefox (watch mode)",
+        "type": "firefox",
+        "request": "launch",
+        "addonPath": "${workspaceFolder}/dist",
+        "url": "about:debugging#/runtime/this-firefox",
+        "webRoot": "${workspaceFolder}/dist",
+        "reAttach": true,
+        "reloadOnChange": {
+            "watch": "${workspaceFolder}/dist/**/*",
+            "ignore": "**/node_modules/**"
+        },
+        "pathMappings": [
+            {
+                "url": "moz-extension://0692a5db-a9cd-4113-be17-2c5b21807a26/contentScript.js",
+                "path": "${workspaceFolder}/public/contentScript.js"
+            },
+            {
+                "url": "moz-extension://src",
+                "path": "${workspaceFolder}/src"
+            },
+            {
+                "url": "moz-extension://*",
+                "path": "${workspaceFolder}/dist"
+            }
+        ],
+        "preLaunchTask": "vite:watch"
+    },
+    {
+        "name": "Extension: Firefox via web-ext (watch)",
+        "type": "firefox",
+        "request": "attach",
+        "url": "about:debugging#/runtime/this-firefox",
+        "webRoot": "${workspaceFolder}/dist",
+        "port": 6000,
+        "pathMappings": [
+            {
+                "url": "moz-extension://*",
+                "path": "${workspaceFolder}/dist"
+            }
+        ],
+        "preLaunchTask": "vite:watch"
+    }
+],
+  "compounds": [
+    {
+      "name": "🚀 Dev: Chrome (Webpage)",
+      "configurations": ["Webpage: Chrome + Vite Dev Server"],
+      "stopAll": true
+    },
+    {
+      "name": "🚀 Dev: Firefox (Webpage)",
+      "configurations": ["Webpage: Firefox + Vite Dev Server"],
+      "stopAll": true
+    },
+    {
+      "name": "🔧 Dev: Chrome Extension (Watch)",
+      "configurations": ["Extension: Chrome (watch mode)"],
+      "stopAll": true
+    },
+    {
+      "name": "🔧 Dev: Firefox Extension (Watch)",
+      "configurations": ["Extension: Firefox (watch mode)"],
+      "stopAll": true
+    }
+  ]
+}

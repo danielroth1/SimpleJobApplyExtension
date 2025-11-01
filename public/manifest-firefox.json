@@ -8,8 +8,14 @@
     }
   },
   "description": "Analyze job postings, highlight keywords, and generate cover letters from your own paragraph blocks.",
+  "icons": {
+    "128": "icon.ico",
+    "48": "icon.ico",
+    "32": "icon.ico"
+  },
   "browser_action": {
-    "default_title": "Simple Job Apply"
+    "default_title": "Simple Job Apply",
+    "default_icon": "icon.ico"
   },
   "permissions": ["storage", "activeTab", "tabs", "<all_urls>"],
   "background": {

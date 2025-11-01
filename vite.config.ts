@@ -19,6 +19,16 @@ export default defineConfig({
             path.resolve(__dirname, 'public/manifest-firefox.json'),
             path.resolve(__dirname, 'dist/manifest.json')
           )
+          // Copy custom icon from src into dist so manifests referencing "icon.ico" can find it
+          try {
+            copyFileSync(
+              path.resolve(__dirname, 'src/icon.ico'),
+              path.resolve(__dirname, 'dist/icon.ico')
+            )
+            console.log('✓ Copied icon.ico to dist')
+          } catch (e) {
+            console.warn('Could not copy icon.ico to dist:', e)
+          }
           console.log('✓ Copied Firefox MV2 manifest')
         } catch (e) {
           console.warn('Could not copy Firefox manifest:', e)

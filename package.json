@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:firefox": "npm run build && npx web-ext build --source-dir dist --artifacts-dir web-ext-artifacts",
     "preview": "vite preview"
   },
   "dependencies": {

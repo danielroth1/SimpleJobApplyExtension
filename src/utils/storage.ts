@@ -102,18 +102,3 @@ export async function getPageText(): Promise<string | null> {
     return null
   }
 }
-
-// Site-specific content extraction rules
-const SITE_RULES: Record<string, { selector: string }> = {
-  'linkedin.com': { selector: 'article.jobs-description__container' },
-  // Add more site-specific rules here as needed
-}
-
-function getSiteRule(url: string): { selector: string } | null {
-  for (const [domain, rule] of Object.entries(SITE_RULES)) {
-    if (url.includes(domain)) {
-      return rule
-    }
-  }
-  return null
-}

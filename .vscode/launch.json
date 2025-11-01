@@ -115,7 +115,7 @@
         },
         "pathMappings": [
             {
-                "url": "moz-extension://0692a5db-a9cd-4113-be17-2c5b21807a26/contentScript.js",
+                "url": "moz-extension://*/contentScript.js",
                 "path": "${workspaceFolder}/public/contentScript.js"
             },
             {

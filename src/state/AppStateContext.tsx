@@ -223,6 +223,27 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setState(prev => ({ ...prev, autoAnalyze: !prev.autoAnalyze }))
   }, [])
 
+  const debugPageState = useCallback(async () => {
+    const api = (window as any).browser ?? (window as any).chrome
+    if (!api?.tabs?.query) {
+      console.error('Cannot debug: tabs API not available')
+      return
+    }
+    
+    try {
+      const [tab] = await api.tabs.query({ active: true, currentWindow: true })
+      if (!tab?.id) {
+        console.error('No active tab found')
+        return
+      }
+      
+      console.log('🔍 Sending DEBUG_PAGE_STATE message to tab:', tab.id)
+      api.tabs.sendMessage(tab.id, { type: 'DEBUG_PAGE_STATE' })
+    } catch (e) {
+      console.error('Debug error:', e)
+    }
+  }, [])
+
   const value = useMemo(() => ({
     state,
     actions: {
@@ -243,8 +264,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       toggleHighlightInCoverLetter,
       toggleAutoAnalyze,
       highlightPageKeywords,
+      debugPageState,
     }
-  }), [state, addParagraph, updateParagraph, addKeyword, removeKeyword, reorderParagraphs, setJobPostingRaw, analyzeNow, generateCoverLetter, setJobEditorHidden, saveToFile, loadFromFile, pasteFromClipboard, analyzeCurrentPage, toggleDarkMode, toggleHighlightInCoverLetter, toggleAutoAnalyze, highlightPageKeywords])
+  }), [state, addParagraph, updateParagraph, addKeyword, removeKeyword, reorderParagraphs, setJobPostingRaw, analyzeNow, generateCoverLetter, setJobEditorHidden, saveToFile, loadFromFile, pasteFromClipboard, analyzeCurrentPage, toggleDarkMode, toggleHighlightInCoverLetter, toggleAutoAnalyze, highlightPageKeywords, debugPageState])
 
   return (
     <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>

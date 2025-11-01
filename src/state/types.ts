@@ -37,4 +37,5 @@ export type AppActions = {
   toggleHighlightInCoverLetter: () => void
   toggleAutoAnalyze: () => void
   highlightPageKeywords: () => Promise<void>
+  debugPageState: () => Promise<void>
 }

@@ -27,6 +27,7 @@ export default function TopBar() {
       <span className="small"> | </span>
       <button onClick={actions.pasteFromClipboard}>Paste posting</button>
       <button onClick={actions.analyzeCurrentPage}>Analyze current page</button>
+      <button onClick={actions.debugPageState} title="Debug: Log page DOM state to console">🔍 Debug</button>
       <span className="small"> | </span>
       <div className="settings-container" ref={settingsRef}>
         <button onClick={() => setShowSettings(!showSettings)}>⚙</button>

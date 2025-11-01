@@ -6,8 +6,17 @@ setInterval(() => {
   const currentUrl = window.location.href
   if (currentUrl !== lastUrl) {
     lastUrl = currentUrl
+    console.log('[ContentScript] URL changed to:', currentUrl)
     // Notify extension that URL changed
-    chrome.runtime.sendMessage({ type: 'URL_CHANGED', url: currentUrl })
+    try {
+      chrome.runtime.sendMessage({ type: 'URL_CHANGED', url: currentUrl }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.log('[ContentScript] Message send error (expected if background not ready):', chrome.runtime.lastError.message)
+        }
+      })
+    } catch (e) {
+      console.log('[ContentScript] Failed to send URL_CHANGED:', e)
+    }
   }
 }, 1000)
 

@@ -36,6 +36,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(t)
   }, [state])
 
+  
+
   const addParagraph = useCallback(() => {
     setState(prev => ({
       ...prev,
@@ -84,8 +86,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const highlightPageKeywords = useCallback(async () => {
     // Send message to content script to highlight keywords on the page
     try {
-      const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
-      if (!tab?.id) return
+      const api = typeof (window as any).browser !== 'undefined' ? (window as any).browser : chrome
+      const [tab] = await api.tabs.query({ active: true, currentWindow: true })
+      console.log('[highlightPageKeywords] Active tab:', tab?.url)
+      
+      if (!tab?.id) {
+        console.error('[highlightPageKeywords] No active tab found')
+        return
+      }
       
       // Build keyword color map
       const keywordColorMap: Record<string, string> = {}
@@ -96,12 +104,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         })
       })
       
-      await chrome.tabs.sendMessage(tab.id, { 
+      console.log('[highlightPageKeywords] Sending SIMPLE_HIGHLIGHT_KEYWORDS to tab', tab.id)
+      await api.tabs.sendMessage(tab.id, { 
         type: 'SIMPLE_HIGHLIGHT_KEYWORDS', 
         keywords: keywordColorMap 
       })
+      console.log('[highlightPageKeywords] Message sent successfully')
     } catch (e) {
-      console.error('Failed to highlight keywords on page:', e)
+      console.error('[highlightPageKeywords] Failed to highlight keywords on page:', e)
     }
   }, [state.paragraphs, state.darkMode])
 
@@ -157,6 +167,35 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setTimeout(() => analyzeNow(), 0)
     }
   }, [setJobPostingRaw, analyzeNow])
+
+  // Listen for background-triggered auto-analyze messages (after analyzeCurrentPage is defined)
+  useEffect(() => {
+    const api = typeof (window as any).browser !== 'undefined' ? (window as any).browser : chrome
+    if (typeof api === 'undefined' || !api.runtime?.onMessage) return
+    
+    const handler = (msg: any) => {
+      console.log('[AppStateContext] Received message:', msg)
+      if (msg?.type === 'AUTO_ANALYZE_CURRENT_PAGE') {
+        const url: string = msg.url || ''
+        console.log('[AppStateContext] AUTO_ANALYZE_CURRENT_PAGE received. autoAnalyze:', state.autoAnalyze, 'url:', url)
+        if (!state.autoAnalyze) {
+          console.log('[AppStateContext] Auto-analyze is disabled, skipping')
+          return
+        }
+        if (!/linkedin\.com/i.test(url)) {
+          console.log('[AppStateContext] Not a LinkedIn URL, skipping')
+          return
+        }
+        console.log('[AppStateContext] Triggering analyzeCurrentPage')
+        analyzeCurrentPage()
+      }
+    }
+    api.runtime.onMessage.addListener(handler)
+    console.log('[AppStateContext] Message listener registered')
+    return () => {
+      try { api.runtime.onMessage.removeListener(handler) } catch {}
+    }
+  }, [state.autoAnalyze, analyzeCurrentPage])
 
   const toggleDarkMode = useCallback(() => {
     setState(prev => ({ ...prev, darkMode: !prev.darkMode }))

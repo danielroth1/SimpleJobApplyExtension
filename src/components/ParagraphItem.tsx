@@ -3,17 +3,36 @@ import { Paragraph } from '@/state/types'
 import { useAppState } from '@/state/AppStateContext'
 import { hslForIndex } from '@/state/logic'
 import ModalPrompt from './ModalPrompt'
-import { DraggableProvidedDragHandleProps } from '@hello-pangea/dnd'
+import { useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
-export default function ParagraphItem({ paragraph, colorIndex, dragHandleProps }: { paragraph: Paragraph, colorIndex: number, dragHandleProps?: DraggableProvidedDragHandleProps | null }) {
+export default function ParagraphItem({ paragraph, colorIndex }: { paragraph: Paragraph, colorIndex: number }) {
   const { actions, state } = useAppState()
   const [showPrompt, setShowPrompt] = useState(false)
   const color = useMemo(() => hslForIndex(colorIndex, state.darkMode), [colorIndex, state.darkMode])
 
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: paragraph.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
   return (
-    <div className="paragraph-item">
+    <div 
+      ref={setNodeRef} 
+      style={style} 
+      className={`paragraph-item ${isDragging ? 'dragging' : ''}`}
+    >
       <div className="paragraph-sidebar">
-        <button className="drag-handle-btn" {...dragHandleProps} title="Drag to reorder">⠿</button>
+        <button className="drag-handle-btn" {...attributes} {...listeners} title="Drag to reorder">⠿</button>
         <button className={`toggle ${paragraph.included ? 'active' : ''}`} title="Included in cover letter" onClick={() => actions.updateParagraph(paragraph.id, { included: !paragraph.included })}>✓</button>
         <button className={`toggle ${paragraph.autoInclude ? 'active' : ''}`} title="Always include in cover letter" onClick={() => actions.updateParagraph(paragraph.id, { autoInclude: !paragraph.autoInclude })}>★</button>
         <button className={`toggle ${paragraph.noLineBreak ? 'active' : ''}`} title="No line break after this paragraph" onClick={() => actions.updateParagraph(paragraph.id, { noLineBreak: !paragraph.noLineBreak })}>↩</button>

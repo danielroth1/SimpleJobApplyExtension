@@ -64,12 +64,41 @@ export async function getPageText(): Promise<string | null> {
     // Dev fallback
     return document.body?.innerText || ''
   }
+  
   try {
-    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
-    if (!tab?.id) return null
-    const resp = await chrome.tabs.sendMessage(tab.id, { type: 'SIMPLE_GET_PAGE_TEXT' })
-    return resp?.text || null
+    // Support both chrome and browser APIs
+    const api = typeof (window as any).browser !== 'undefined' ? (window as any).browser : chrome
+    const [tab] = await api.tabs.query({ active: true, currentWindow: true })
+    console.log('[getPageText] Active tab:', tab?.url)
+    
+    if (!tab?.id) {
+      console.error('[getPageText] No active tab found')
+      return null
+    }
+    
+    // Retry mechanism: content script might not be ready yet
+    let lastError: any = null
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        if (attempt > 0) {
+          console.log(`[getPageText] Retry attempt ${attempt + 1}/3 after ${attempt * 500}ms delay`)
+          await new Promise(resolve => setTimeout(resolve, attempt * 500))
+        }
+        
+        console.log('[getPageText] Sending SIMPLE_GET_PAGE_TEXT to tab', tab.id)
+        const resp = await api.tabs.sendMessage(tab.id, { type: 'SIMPLE_GET_PAGE_TEXT' })
+        console.log('[getPageText] Response:', resp)
+        return resp?.text || null
+      } catch (e) {
+        lastError = e
+        console.warn(`[getPageText] Attempt ${attempt + 1} failed:`, e)
+      }
+    }
+    
+    console.error('[getPageText] All retry attempts failed:', lastError)
+    return null
   } catch (e) {
+    console.error('[getPageText] Error:', e)
     return null
   }
 }

@@ -37,11 +37,11 @@ export default function TopBar() {
               <span>{state.darkMode ? 'Light Mode' : 'Dark Mode'}</span>
             </div>
             <div className="settings-menu-divider" />
-            <div className="settings-menu-item" onClick={actions.toggleHighlightInCoverLetter}>
+            <div className="settings-menu-item" title="When enabled, matching keywords are highlighted in the generated cover letter." onClick={actions.toggleHighlightInCoverLetter}>
               <input type="checkbox" checked={state.highlightInCoverLetter} onChange={() => {}} />
               <span>Highlight in cover letter</span>
             </div>
-            <div className="settings-menu-item" onClick={actions.toggleAutoAnalyze}>
+            <div className="settings-menu-item" title="When enabled, LinkedIn job pages automatically trigger analysis when you navigate to a new posting." onClick={actions.toggleAutoAnalyze}>
               <input type="checkbox" checked={state.autoAnalyze} onChange={() => {}} />
               <span>Auto-analyze pages</span>
             </div>

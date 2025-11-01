@@ -1,15 +1,13 @@
 {
-  "manifest_version": 3,
+  "manifest_version": 2,
   "name": "Simple Job Apply",
   "version": "0.1.0",
   "description": "Analyze job postings, highlight keywords, and generate cover letters from your own paragraph blocks.",
-  "action": {
+  "browser_action": {
     "default_title": "Simple Job Apply"
   },
-  "permissions": ["storage", "activeTab", "tabs", "sidePanel"],
-  "host_permissions": ["<all_urls>"],
+  "permissions": ["storage", "activeTab", "tabs", "<all_urls>"],
   "background": {
-    "service_worker": "background.js",
     "scripts": ["background-ff.js"]
   },
   "content_scripts": [
@@ -19,7 +17,8 @@
       "run_at": "document_idle"
     }
   ],
-  "side_panel": {
-    "default_path": "index.html"
+  "sidebar_action": {
+    "default_panel": "index.html",
+    "default_title": "Simple Job Apply"
   }
 }

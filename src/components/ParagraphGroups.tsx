@@ -1,45 +1,67 @@
 import React from 'react'
 import { useAppState } from '@/state/AppStateContext'
 import ParagraphItem from './ParagraphItem'
-import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
 
 export default function ParagraphGroups() {
   const { state, actions } = useAppState()
+  
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
 
-  const handleDragEnd = (result: DropResult) => {
-    if (!result.destination) return
-    if (result.source.index === result.destination.index) return
-    actions.reorderParagraphs(result.source.index, result.destination.index)
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    
+    if (!over || active.id === over.id) return
+    
+    const oldIndex = state.paragraphs.findIndex(p => p.id === active.id)
+    const newIndex = state.paragraphs.findIndex(p => p.id === over.id)
+    
+    if (oldIndex !== -1 && newIndex !== -1) {
+      actions.reorderParagraphs(oldIndex, newIndex)
+    }
   }
 
   return (
     <div className="content">
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <Droppable droppableId="paragraphs">
-          {(provided) => (
-            <div className="paragraphs-list" {...provided.droppableProps} ref={provided.innerRef}>
-              {state.paragraphs.map((p, i) => (
-                <Draggable key={p.id} draggableId={p.id} index={i}>
-                  {(provided, snapshot) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.draggableProps}
-                      className={`paragraph-wrapper ${snapshot.isDragging ? 'dragging' : ''}`}
-                    >
-                      <ParagraphItem 
-                        paragraph={p} 
-                        colorIndex={i}
-                        dragHandleProps={provided.dragHandleProps}
-                      />
-                    </div>
-                  )}
-                </Draggable>
-              ))}
-              {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
-      </DragDropContext>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={state.paragraphs.map(p => p.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="paragraphs-list">
+            {state.paragraphs.map((p, i) => (
+              <ParagraphItem 
+                key={p.id}
+                paragraph={p} 
+                colorIndex={i}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
       <div className="add-paragraph-container">
         <button className="add-group" onClick={actions.addParagraph}>+ Add Paragraph</button>
       </div>

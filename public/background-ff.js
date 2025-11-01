@@ -1,26 +1,72 @@
-// Legacy background script for Firefox / web-ext when service workers are disabled.
-// Provides equivalent behavior to background.js (best-effort).
+// Firefox MV2 background script
+// Uses browser API with callbacks/promises
 
-try {
-  if (typeof browser !== 'undefined' || typeof chrome !== 'undefined') {
-    const runtime = typeof browser !== 'undefined' ? browser : chrome
-    runtime.runtime && runtime.runtime.onInstalled && runtime.runtime.onInstalled.addListener(() => {
-      try { runtime.sidePanel && runtime.sidePanel.setOptions && runtime.sidePanel.setOptions({ path: 'index.html' }) } catch(e) {}
-    })
+const runtime = typeof browser !== 'undefined' ? browser : chrome
+console.log('[Background-FF] Initializing...')
 
-    // Fallback: respond to action clicks by opening a new tab to index.html
-    runtime.action && runtime.action.onClicked && runtime.action.onClicked.addListener(async (tab) => {
-      try {
-        const url = runtime.runtime?.getURL ? runtime.runtime.getURL('index.html') : 'index.html'
-        if (tab && tab.id) {
-          // try opening in a new tab
-          runtime.tabs && runtime.tabs.create && runtime.tabs.create({ url })
-        }
-      } catch (e) {
-        // no-op
+// Open sidebar on action click
+if (runtime.browserAction && runtime.browserAction.onClicked) {
+  runtime.browserAction.onClicked.addListener(async (tab) => {
+    console.log('[Background-FF] Browser action clicked')
+    try {
+      if (runtime.sidebarAction && runtime.sidebarAction.open) {
+        await runtime.sidebarAction.open()
+        console.log('[Background-FF] Sidebar opened')
       }
-    })
-  }
-} catch (e) {
-  // ignore
+    } catch (e) {
+      console.error('[Background-FF] Failed to open sidebar:', e)
+    }
+  })
+}
+
+// Listen for URL changes from content scripts
+if (runtime.runtime?.onMessage) {
+  const debouncePerTab = new Map()
+  
+  runtime.runtime.onMessage.addListener((msg, sender) => {
+    console.log('[Background-FF] Received message:', msg, 'from', sender.tab?.url)
+    
+    if (msg && msg.type === 'URL_CHANGED') {
+      const url = msg.url || ''
+      console.log('[Background-FF] URL_CHANGED detected:', url)
+      
+      if (!/linkedin\.com/i.test(url)) {
+        console.log('[Background-FF] Not a LinkedIn URL, ignoring')
+        return false
+      }
+
+      const tabId = sender.tab?.id || 'global'
+      const now = Date.now()
+      const last = debouncePerTab.get(tabId) || 0
+      if (now - last < 1500) {
+        console.log('[Background-FF] Debounced (too soon)')
+        return false
+      }
+      debouncePerTab.set(tabId, now)
+
+      // Check storage and broadcast
+      runtime.storage.local.get('appState').then((data) => {
+        const autoAnalyze = !!data?.appState?.autoAnalyze
+        console.log('[Background-FF] autoAnalyze setting:', autoAnalyze)
+        
+        if (!autoAnalyze) return
+        
+        console.log('[Background-FF] Sending AUTO_ANALYZE_CURRENT_PAGE')
+        runtime.runtime.sendMessage({ 
+          type: 'AUTO_ANALYZE_CURRENT_PAGE', 
+          url 
+        }).then(() => {
+          console.log('[Background-FF] Message sent successfully')
+        }).catch((err) => {
+          console.log('[Background-FF] Message send error:', err.message)
+        })
+      }).catch(err => {
+        console.error('[Background-FF] Storage get error:', err)
+      })
+    }
+    
+    return false
+  })
+  
+  console.log('[Background-FF] Message listener registered')
 }

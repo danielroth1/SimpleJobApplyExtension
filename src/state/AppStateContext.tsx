@@ -20,13 +20,27 @@ const defaultState: AppState = {
   autoAnalyze: true,
 }
 
+function normalizeLoadedState(s: Partial<AppState> | null): AppState {
+  if (!s) return defaultState
+  return {
+    paragraphs: Array.isArray(s.paragraphs) ? s.paragraphs : defaultState.paragraphs,
+    jobPostingRaw: s.jobPostingRaw ?? defaultState.jobPostingRaw,
+    jobPostingHTML: s.jobPostingHTML ?? defaultState.jobPostingHTML,
+    coverLetterHTML: s.coverLetterHTML ?? defaultState.coverLetterHTML,
+    jobEditorHidden: s.jobEditorHidden ?? defaultState.jobEditorHidden,
+    darkMode: s.darkMode ?? defaultState.darkMode,
+    highlightInCoverLetter: s.highlightInCoverLetter ?? defaultState.highlightInCoverLetter,
+    autoAnalyze: s.autoAnalyze ?? defaultState.autoAnalyze,
+  }
+}
+
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AppState>(defaultState)
 
   // Load from storage on init
   useEffect(() => {
     loadStateFromStorage().then(s => {
-      if (s) setState(s)
+      if (s) setState(normalizeLoadedState(s))
     })
   }, [])
 
@@ -86,7 +100,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const highlightPageKeywords = useCallback(async () => {
     // Send message to content script to highlight keywords on the page
     try {
-      const api = typeof (window as any).browser !== 'undefined' ? (window as any).browser : chrome
+  const api = (window as any).browser ?? (window as any).chrome
       const [tab] = await api.tabs.query({ active: true, currentWindow: true })
       console.log('[highlightPageKeywords] Active tab:', tab?.url)
       
@@ -170,8 +184,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   // Listen for background-triggered auto-analyze messages (after analyzeCurrentPage is defined)
   useEffect(() => {
-    const api = typeof (window as any).browser !== 'undefined' ? (window as any).browser : chrome
-    if (typeof api === 'undefined' || !api.runtime?.onMessage) return
+  const api = (window as any).browser ?? (window as any).chrome
+  if (typeof api === 'undefined' || !api.runtime?.onMessage) return
     
     const handler = (msg: any) => {
       console.log('[AppStateContext] Received message:', msg)

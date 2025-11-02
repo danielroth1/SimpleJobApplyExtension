@@ -5,6 +5,7 @@ export type Paragraph = {
   noLineBreak: boolean
   autoInclude: boolean
   included: boolean
+  collapsed: boolean
   lastMatchedKeywords?: string[]
 }
 
@@ -22,6 +23,7 @@ export type AppState = {
 export type AppActions = {
   addParagraph: () => void
   updateParagraph: (paragraphId: string, patch: Partial<Paragraph> | ((prev: Paragraph) => Partial<Paragraph>)) => void
+  deleteParagraph: (paragraphId: string) => void
   addKeyword: (paragraphId: string, keyword: string) => void
   removeKeyword: (paragraphId: string, keyword: string) => void
   reorderParagraphs: (fromIndex: number, toIndex: number) => void

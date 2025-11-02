@@ -7,23 +7,35 @@ const AppStateContext = createContext<{ state: AppState, actions: AppActions } |
 
 function uuid(): string { return Math.random().toString(36).slice(2) }
 
+// Detect system theme preference
+function getSystemThemePreference(): boolean {
+  if (typeof window !== 'undefined' && window.matchMedia) {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches
+  }
+  return false
+}
+
 const defaultState: AppState = {
   paragraphs: [
-    { id: uuid(), html: '<p>Dear Hiring Manager,</p>', keywords: ['React', 'TypeScript'], noLineBreak: false, autoInclude: false, included: false }
+    { id: uuid(), html: '<p>Dear Hiring Manager,</p>', keywords: ['React', 'TypeScript'], noLineBreak: false, autoInclude: false, included: false, collapsed: true }
   ],
   jobPostingRaw: '',
   jobPostingHTML: '',
   coverLetterHTML: '<p></p>',
   jobEditorHidden: false,
-  darkMode: false,
+  darkMode: getSystemThemePreference(),
   highlightInCoverLetter: true,
   autoAnalyze: true,
 }
 
 function normalizeLoadedState(s: Partial<AppState> | null): AppState {
   if (!s) return defaultState
+  // Normalize paragraphs to ensure collapsed field exists (default to true)
+  const paragraphs = Array.isArray(s.paragraphs) 
+    ? s.paragraphs.map(p => ({ ...p, collapsed: p.collapsed ?? true }))
+    : defaultState.paragraphs
   return {
-    paragraphs: Array.isArray(s.paragraphs) ? s.paragraphs : defaultState.paragraphs,
+    paragraphs,
     jobPostingRaw: s.jobPostingRaw ?? defaultState.jobPostingRaw,
     jobPostingHTML: s.jobPostingHTML ?? defaultState.jobPostingHTML,
     coverLetterHTML: s.coverLetterHTML ?? defaultState.coverLetterHTML,
@@ -73,7 +85,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const addParagraph = useCallback(() => {
     setState(prev => ({
       ...prev,
-      paragraphs: [...prev.paragraphs, { id: uuid(), html: '<p></p>', keywords: [], noLineBreak: false, autoInclude: false, included: false }]
+      paragraphs: [...prev.paragraphs, { id: uuid(), html: '<p></p>', keywords: [], noLineBreak: false, autoInclude: false, included: false, collapsed: true }]
     }))
   }, [])
 
@@ -86,6 +98,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       Object.assign(p, resolvedPatch)
       return next
     })
+  }, [])
+
+  const deleteParagraph = useCallback((paragraphId: string) => {
+    setState(prev => ({
+      ...prev,
+      paragraphs: prev.paragraphs.filter(p => p.id !== paragraphId)
+    }))
   }, [])
 
   const addKeyword = useCallback((paragraphId: string, keyword: string) => {
@@ -287,6 +306,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     actions: {
       addParagraph,
       updateParagraph,
+      deleteParagraph,
       addKeyword,
       removeKeyword,
       reorderParagraphs,
@@ -304,7 +324,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       highlightPageKeywords,
       debugPageState,
     }
-  }), [state, addParagraph, updateParagraph, addKeyword, removeKeyword, reorderParagraphs, setJobPostingRaw, analyzeNow, generateCoverLetter, setJobEditorHidden, saveToFile, loadFromFile, pasteFromClipboard, analyzeCurrentPage, toggleDarkMode, toggleHighlightInCoverLetter, toggleAutoAnalyze, highlightPageKeywords, debugPageState])
+  }), [state, addParagraph, updateParagraph, deleteParagraph, addKeyword, removeKeyword, reorderParagraphs, setJobPostingRaw, analyzeNow, generateCoverLetter, setJobEditorHidden, saveToFile, loadFromFile, pasteFromClipboard, analyzeCurrentPage, toggleDarkMode, toggleHighlightInCoverLetter, toggleAutoAnalyze, highlightPageKeywords, debugPageState])
 
   return (
     <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>

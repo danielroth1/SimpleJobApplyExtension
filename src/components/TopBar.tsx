@@ -23,20 +23,17 @@ export default function TopBar() {
 
   return (
     <div className="topbar">
-      <button className="primary" onClick={actions.analyzeNow} title="Analyze the job posting and match keywords with your paragraphs">
+      <button className="btn btn-primary btn-sm" onClick={actions.analyzeNow} title="Analyze the job posting and match keywords with your paragraphs">
         🔍 Analyze
       </button>
-      <span className="small"> | </span>
-      <button onClick={actions.pasteFromClipboard} title="Paste job posting from clipboard">
+      <button className="btn btn-outline-secondary btn-sm" onClick={actions.pasteFromClipboard} title="Paste job posting from clipboard">
         📋 Paste posting
       </button>
-      <button onClick={actions.analyzeCurrentPage} title="Extract and analyze job posting from the current active tab">
+      <button className="btn btn-outline-secondary btn-sm" onClick={actions.analyzeCurrentPage} title="Extract and analyze job posting from the current active tab">
         🌐 Analyze current page
       </button>
-      <button onClick={actions.debugPageState} title="Debug: Log page DOM state to console">🔍 Debug</button>
-      <span className="small"> | </span>
       <div className="settings-container" ref={settingsRef}>
-        <button onClick={() => setShowSettings(!showSettings)}>⚙</button>
+        <button className="btn btn-outline-secondary btn-sm" onClick={() => setShowSettings(!showSettings)}>⚙</button>
         {showSettings && (
           <div className="settings-menu">
             <div className="settings-menu-item" onClick={actions.toggleDarkMode}>
@@ -60,6 +57,11 @@ export default function TopBar() {
             <div className="settings-menu-item" onClick={() => { fileRef.current?.click(); setShowSettings(false); }}>
               <span>📂</span>
               <span>Load</span>
+            </div>
+            <div className="settings-menu-divider" />
+            <div className="settings-menu-item" onClick={() => { actions.debugPageState(); setShowSettings(false); }} title="Debug: Log page DOM state to console">
+              <span>🔍</span>
+              <span>Debug</span>
             </div>
           </div>
         )}

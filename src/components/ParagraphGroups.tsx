@@ -51,7 +51,7 @@ export default function ParagraphGroups() {
           items={state.paragraphs.map(p => p.id)}
           strategy={verticalListSortingStrategy}
         >
-          <div className="paragraphs-list">
+          <div>
             {state.paragraphs.map((p, i) => (
               <ParagraphItem 
                 key={p.id}
@@ -62,8 +62,8 @@ export default function ParagraphGroups() {
           </div>
         </SortableContext>
       </DndContext>
-      <div className="add-paragraph-container">
-        <button className="add-group" onClick={actions.addParagraph}>+ Add Paragraph</button>
+      <div className="align-items-center mx-auto justify-content-center text-center">
+        <button className="btn btn-outline-secondary" onClick={actions.addParagraph}>+ Add Paragraph</button>
       </div>
     </div>
   )

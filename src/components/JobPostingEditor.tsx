@@ -6,12 +6,8 @@ export default function JobPostingEditor() {
 
   return (
     <div className="panel">
-      <h3>Job Posting <span className="small">(single font)</span></h3>
+      <h3>Job Posting</h3>
       <div className="content">
-        <div className="actions-row">
-          <button className="toggle" onClick={() => actions.setJobEditorHidden(!state.jobEditorHidden)}>{state.jobEditorHidden ? 'Show' : 'Hide'}</button>
-          <span className="small">Click Analyze to highlight keywords</span>
-        </div>
         {!state.jobEditorHidden && (
           <div
             className="editor"

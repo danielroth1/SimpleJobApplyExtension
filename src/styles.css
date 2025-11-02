@@ -12,6 +12,37 @@
   --input-bg: #ffffff;
 }
 
+/* Modern button styles for light mode */
+.btn-primary {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  border-color: #2563eb;
+  color: white;
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  border-color: #1d4ed8;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.btn-outline-secondary {
+  color: var(--text);
+  border-color: var(--border);
+  background: linear-gradient(135deg, rgba(241, 245, 249, 0.5) 0%, rgba(226, 232, 240, 0.5) 100%);
+  transition: all 0.2s ease;
+}
+
+.btn-outline-secondary:hover {
+  color: var(--text);
+  background: linear-gradient(135deg, rgba(226, 232, 240, 0.8) 0%, rgba(203, 213, 225, 0.8) 100%);
+  border-color: var(--muted);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
 body.dark-mode {
   --border: #374151;
   --muted: #9ca3af;
@@ -39,26 +70,31 @@ body.dark-mode .btn:hover {
 }
 
 body.dark-mode .btn-primary {
-  background-color: var(--accent);
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   border-color: var(--accent);
   color: white;
 }
 
 body.dark-mode .btn-primary:hover {
-  background-color: #1d4ed8;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
   border-color: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
 }
 
 body.dark-mode .btn-outline-secondary {
   color: var(--text);
   border-color: var(--border);
-  background-color: transparent;
+  background: linear-gradient(135deg, rgba(55, 65, 81, 0.3) 0%, rgba(31, 41, 55, 0.3) 100%);
+  transition: all 0.2s ease;
 }
 
 body.dark-mode .btn-outline-secondary:hover {
   color: var(--text);
-  background-color: var(--chip-bg);
+  background: linear-gradient(135deg, rgba(55, 65, 81, 0.6) 0%, rgba(31, 41, 55, 0.6) 100%);
   border-color: var(--muted);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 body.dark-mode .card {
@@ -103,7 +139,8 @@ body.dark-mode .form-control {
 /* Column layout - ensure full width expansion */
 .col {
   max-width: 100% !important;
-  padding-top: 12px;
+  /* Reduced top padding to tighten gap under tabs */
+  padding-top: 6px;
 }
 
 /* Tab navigation */
@@ -170,7 +207,7 @@ body.dark-mode .form-control {
 }
 
 .drag-handle-btn { 
-  padding: 8px 10px; 
+  padding: 3px 8px; 
   border: 1px solid var(--border); 
   border-radius: 6px; 
   background: var(--input-bg); 

@@ -40,8 +40,45 @@ export default function ParagraphGroups() {
     }
   }
 
+  const handleCollapseAll = () => {
+    state.paragraphs.forEach(p => {
+      if (!p.collapsed) {
+        actions.updateParagraph(p.id, { collapsed: true })
+      }
+    })
+  }
+
+  const handleExpandAll = () => {
+    state.paragraphs.forEach(p => {
+      if (p.collapsed) {
+        actions.updateParagraph(p.id, { collapsed: false })
+      }
+    })
+  }
+
+  const allCollapsed = state.paragraphs.every(p => p.collapsed)
+  const allExpanded = state.paragraphs.every(p => !p.collapsed)
+
   return (
     <div className="content">
+      {/* Top bar with collapse/expand all button */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'flex-start', 
+        marginBottom: '6px',
+        paddingBottom: '8px',
+        marginLeft: '4px',
+        borderBottom: '1px solid var(--border)'
+      }}>
+        <button 
+          className="btn btn-outline-secondary btn-sm" 
+          onClick={allExpanded ? handleCollapseAll : handleExpandAll}
+          title={allExpanded ? 'Collapse all paragraphs' : 'Expand all paragraphs'}
+        >
+          {allExpanded ? '▲ Collapse All' : '▼ Expand All'}
+        </button>
+      </div>
+      
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}

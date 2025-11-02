@@ -142,6 +142,9 @@ export function generateCoverLetterHTML(paragraphs: Paragraph[], highlightEnable
             const cleanNextHtml = stripTrailingEmptyPs(next.p.html || '')
             const nextBlocks = extractPBlocks(cleanNextHtml)
             
+            // Add space before merged content
+            combinedContent += ' '
+            
             // If no blocks, use raw content
             if (nextBlocks.length === 0) {
               const nextContent = cleanNextHtml.trim()
@@ -185,6 +188,9 @@ export function generateCoverLetterHTML(paragraphs: Paragraph[], highlightEnable
           const next = included[currentIdx + 1]
           const cleanNextHtml = stripTrailingEmptyPs(next.p.html || '')
           const nextBlocks = extractPBlocks(cleanNextHtml)
+          
+          // Add space before merged content
+          combinedInner += ' '
           
           // If no blocks, use raw content
           if (nextBlocks.length === 0) {

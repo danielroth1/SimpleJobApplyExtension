@@ -193,8 +193,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setState(prev => ({ ...prev, coverLetterHTML: generateCoverLetterHTML(prev.paragraphs, prev.highlightInCoverLetter, prev.darkMode) }))
   }, [])
 
-  const setJobEditorHidden = useCallback((hidden: boolean) => setState(prev => ({ ...prev, jobEditorHidden: hidden })), [])
-
   const saveToFile = useCallback(async () => { 
     // Only save content, not settings
     const dataToSave = {
@@ -313,7 +311,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setJobPostingRaw,
       analyzeNow,
       generateCoverLetter,
-      setJobEditorHidden,
       saveToFile,
       loadFromFile,
       pasteFromClipboard,
@@ -324,7 +321,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       highlightPageKeywords,
       debugPageState,
     }
-  }), [state, addParagraph, updateParagraph, deleteParagraph, addKeyword, removeKeyword, reorderParagraphs, setJobPostingRaw, analyzeNow, generateCoverLetter, setJobEditorHidden, saveToFile, loadFromFile, pasteFromClipboard, analyzeCurrentPage, toggleDarkMode, toggleHighlightInCoverLetter, toggleAutoAnalyze, highlightPageKeywords, debugPageState])
+  }), [state, addParagraph, updateParagraph, deleteParagraph, addKeyword, removeKeyword, reorderParagraphs, setJobPostingRaw, analyzeNow, generateCoverLetter, saveToFile, loadFromFile, pasteFromClipboard, analyzeCurrentPage, toggleDarkMode, toggleHighlightInCoverLetter, toggleAutoAnalyze, highlightPageKeywords, debugPageState])
 
   return (
     <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>

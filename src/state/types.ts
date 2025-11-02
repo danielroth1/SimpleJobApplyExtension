@@ -30,7 +30,6 @@ export type AppActions = {
   setJobPostingRaw: (raw: string) => void
   analyzeNow: () => void
   generateCoverLetter: () => void
-  setJobEditorHidden: (hidden: boolean) => void
   saveToFile: () => Promise<void>
   loadFromFile: (file: File) => Promise<void>
   pasteFromClipboard: () => Promise<void>

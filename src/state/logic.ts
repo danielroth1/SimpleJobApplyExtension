@@ -81,78 +81,38 @@ export function highlightJobPosting(raw: string, paragraphs: Paragraph[], darkMo
 }
 
 export function generateCoverLetterHTML(paragraphs: Paragraph[], highlightEnabled: boolean = false, darkMode: boolean = false): string {
-  // Iterate paragraphs; include autoInclude or included
+  // Build the cover letter with proper highlighting and line break handling
   const parts: string[] = []
-  paragraphs.forEach(p => {
+  
+  paragraphs.forEach((p, idx) => {
     const include = p.included || p.autoInclude
     if (!include) return
-    const content = p.html || ''
-    if (p.noLineBreak && parts.length) {
+    
+    let content = p.html || ''
+    
+    // Only highlight if enabled AND paragraph has keywords
+    if (highlightEnabled && p.keywords.length > 0) {
+      const color = hslForIndex(idx, darkMode)
+      // Wrap the entire paragraph content in a span with background color
+      content = `<span style="background:${color}">${content}</span>`
+    }
+    
+    // Add placeholder if no keywords
+    if (p.keywords.length === 0 && !content.trim()) {
+      content = '<p style="color: var(--muted); font-style: italic;">[No keywords - add keywords to this paragraph]</p>'
+    }
+    
+    // Handle noLineBreak: merge with previous part instead of creating new part
+    if (p.noLineBreak && parts.length > 0) {
+      // Merge without any separator
       parts[parts.length - 1] = parts[parts.length - 1] + content
     } else {
       parts.push(content)
     }
   })
   
-  let result = parts.join('<br/><br/>')
-  
-  // Apply keyword highlighting if enabled
-  if (highlightEnabled) {
-    // Build keyword-to-color map based on matched keywords
-    const keywordColorMap = new Map<string, string>()
-    paragraphs.forEach((p, idx) => {
-      if (p.included || p.autoInclude) {
-        const color = hslForIndex(idx, darkMode)
-        p.keywords.forEach(kw => {
-          if (!keywordColorMap.has(kw.toLowerCase())) {
-            keywordColorMap.set(kw.toLowerCase(), color)
-          }
-        })
-      }
-    })
-    
-    // Highlight keywords in the cover letter
-    const tempDiv = document.createElement('div')
-    tempDiv.innerHTML = result
-    const textContent = tempDiv.innerText || tempDiv.textContent || ''
-    
-    type Match = { start: number, end: number, color: string }
-    const matches: Match[] = []
-    
-    keywordColorMap.forEach((color, keyword) => {
-      const lower = textContent.toLowerCase()
-      let from = 0
-      while (true) {
-        const idx = lower.indexOf(keyword, from)
-        if (idx === -1) break
-        matches.push({ start: idx, end: idx + keyword.length, color })
-        from = idx + keyword.length
-      }
-    })
-    
-    // Sort and merge overlapping matches
-    matches.sort((a, b) => a.start - b.start || b.end - a.end)
-    const merged: Match[] = []
-    let lastEnd = -1
-    for (const m of matches) {
-      if (m.start >= lastEnd) {
-        merged.push(m)
-        lastEnd = m.end
-      }
-    }
-    
-    // Rebuild with highlights
-    let highlighted = ''
-    let cursor = 0
-    for (const m of merged) {
-      highlighted += escapeHtml(textContent.slice(cursor, m.start))
-      highlighted += `<span style="background:${m.color}">${escapeHtml(textContent.slice(m.start, m.end))}</span>`
-      cursor = m.end
-    }
-    highlighted += escapeHtml(textContent.slice(cursor))
-    
-    result = highlighted
-  }
+  // Join parts without any separator - each part is a standalone paragraph
+  const result = parts.join('')
   
   return result
 }

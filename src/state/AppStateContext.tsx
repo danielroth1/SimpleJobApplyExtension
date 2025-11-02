@@ -176,9 +176,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         const mset = matched.get(p.id) || new Set<string>()
         const paragraphMatched = p.keywords.filter(k => mset.has(k))
         p.lastMatchedKeywords = paragraphMatched
-        if (paragraphMatched.length > 0) {
-          p.included = true
-        }
+        p.included = paragraphMatched.length > 0;
         if (p.autoInclude) p.included = true
       })
       // Generate cover letter automatically after analysis

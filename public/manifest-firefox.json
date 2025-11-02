@@ -1,10 +1,14 @@
 {
   "manifest_version": 2,
   "name": "Simple Job Apply",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "browser_specific_settings": {
     "gecko": {
-      "id": "simple-job-apply@mailbase.info"
+      "id": "simple-job-apply@mailbase.info",
+      "strict_min_version": "109.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
     }
   },
   "description": "Analyze job postings, highlight keywords, and generate cover letters from your own paragraph blocks.",
@@ -31,5 +35,6 @@
   "sidebar_action": {
     "default_panel": "index.html",
     "default_title": "Simple Job Apply"
-  }
+  },
+  "optional_permissions": []
 }

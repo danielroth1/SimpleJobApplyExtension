@@ -4,20 +4,9 @@
 const runtime = typeof browser !== 'undefined' ? browser : chrome
 console.log('[Background-FF] Initializing...')
 
-// Open sidebar on action click
-if (runtime.browserAction && runtime.browserAction.onClicked) {
-  runtime.browserAction.onClicked.addListener(async (tab) => {
-    console.log('[Background-FF] Browser action clicked')
-    try {
-      if (runtime.sidebarAction && runtime.sidebarAction.open) {
-        await runtime.sidebarAction.open()
-        console.log('[Background-FF] Sidebar opened')
-      }
-    } catch (e) {
-      console.error('[Background-FF] Failed to open sidebar:', e)
-    }
-  })
-}
+// Note: In Firefox, the sidebar is opened by the user via the toolbar button.
+// We cannot programmatically open it via browserAction.onClicked.
+// The sidebar_action in manifest.json defines the sidebar panel.
 
 // Listen for URL changes from content scripts
 if (runtime.runtime?.onMessage) {

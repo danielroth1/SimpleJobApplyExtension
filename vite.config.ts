@@ -40,6 +40,7 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     sourcemap: true,
+    minify: false,
   },
   base: './',
   publicDir: 'public',

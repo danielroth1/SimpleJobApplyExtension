@@ -23,10 +23,16 @@ export default function TopBar() {
 
   return (
     <div className="topbar">
-      <button className="primary" onClick={actions.analyzeNow}>Analyze</button>
+      <button className="primary" onClick={actions.analyzeNow} title="Analyze the job posting and match keywords with your paragraphs">
+        🔍 Analyze
+      </button>
       <span className="small"> | </span>
-      <button onClick={actions.pasteFromClipboard}>Paste posting</button>
-      <button onClick={actions.analyzeCurrentPage}>Analyze current page</button>
+      <button onClick={actions.pasteFromClipboard} title="Paste job posting from clipboard">
+        📋 Paste posting
+      </button>
+      <button onClick={actions.analyzeCurrentPage} title="Extract and analyze job posting from the current active tab">
+        🌐 Analyze current page
+      </button>
       <button onClick={actions.debugPageState} title="Debug: Log page DOM state to console">🔍 Debug</button>
       <span className="small"> | </span>
       <div className="settings-container" ref={settingsRef}>

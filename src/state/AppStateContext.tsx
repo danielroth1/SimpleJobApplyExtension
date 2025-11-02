@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { AppActions, AppState, Paragraph } from './types'
 import { cloneState, generateCoverLetterHTML, highlightJobPosting, hslForIndex } from './logic'
-import { loadStateFromStorage, saveStateToStorage, downloadJson, readJsonFile, getPageText, readClipboardText } from '@/utils/storage'
+import { loadStateFromStorage, saveStateToStorage, downloadJson, readJsonFile, getPageText, readClipboardText, saveSettings, loadSettings, type AppSettings } from '@/utils/storage'
 
 const AppStateContext = createContext<{ state: AppState, actions: AppActions } | null>(null)
 
@@ -37,18 +37,36 @@ function normalizeLoadedState(s: Partial<AppState> | null): AppState {
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AppState>(defaultState)
 
-  // Load from storage on init
+  // Load from storage on init (both state and settings)
   useEffect(() => {
-    loadStateFromStorage().then(s => {
-      if (s) setState(normalizeLoadedState(s))
+    Promise.all([loadStateFromStorage(), loadSettings()]).then(([s, settings]) => {
+      const normalizedState = normalizeLoadedState(s)
+      if (settings) {
+        // Merge loaded settings into state
+        normalizedState.darkMode = settings.darkMode
+        normalizedState.highlightInCoverLetter = settings.highlightInCoverLetter
+        normalizedState.autoAnalyze = settings.autoAnalyze
+      }
+      setState(normalizedState)
     })
   }, [])
 
-  // Auto-persist on changes (debounced)
+  // Auto-persist on changes (debounced) - only persist state, not settings
   useEffect(() => {
     const t = setTimeout(() => { saveStateToStorage(state) }, 300)
     return () => clearTimeout(t)
   }, [state])
+
+  // Save settings separately whenever they change
+  useEffect(() => {
+    const settings: AppSettings = {
+      darkMode: state.darkMode,
+      highlightInCoverLetter: state.highlightInCoverLetter,
+      autoAnalyze: state.autoAnalyze,
+    }
+    const t = setTimeout(() => { saveSettings(settings) }, 300)
+    return () => clearTimeout(t)
+  }, [state.darkMode, state.highlightInCoverLetter, state.autoAnalyze])
 
   
 
@@ -158,11 +176,31 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   const setJobEditorHidden = useCallback((hidden: boolean) => setState(prev => ({ ...prev, jobEditorHidden: hidden })), [])
 
-  const saveToFile = useCallback(async () => { await downloadJson(state, `simple-job-apply-state.json`) }, [state])
+  const saveToFile = useCallback(async () => { 
+    // Only save content, not settings
+    const dataToSave = {
+      paragraphs: state.paragraphs,
+      jobPostingRaw: state.jobPostingRaw,
+      jobPostingHTML: state.jobPostingHTML,
+      coverLetterHTML: state.coverLetterHTML,
+      jobEditorHidden: state.jobEditorHidden,
+    }
+    await downloadJson(dataToSave, `simple-job-apply-state.json`) 
+  }, [state])
 
   const loadFromFile = useCallback(async (file: File) => {
     const data = await readJsonFile(file)
-    if (data) setState(data as AppState)
+    if (data) {
+      // Preserve current settings, only load content
+      setState(prev => ({
+        ...prev,
+        paragraphs: data.paragraphs ?? prev.paragraphs,
+        jobPostingRaw: data.jobPostingRaw ?? prev.jobPostingRaw,
+        jobPostingHTML: data.jobPostingHTML ?? prev.jobPostingHTML,
+        coverLetterHTML: data.coverLetterHTML ?? prev.coverLetterHTML,
+        jobEditorHidden: data.jobEditorHidden ?? prev.jobEditorHidden,
+      }))
+    }
   }, [])
 
   const pasteFromClipboard = useCallback(async () => {

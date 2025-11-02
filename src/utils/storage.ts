@@ -2,28 +2,108 @@ import type { AppState } from '@/state/types'
 
 const EXT_PROTOCOLS = ['chrome-extension:', 'moz-extension:']
 
-export async function saveStateToStorage(state: AppState) {
+// Settings that persist across save/load operations (user preferences)
+export type AppSettings = {
+  darkMode: boolean
+  highlightInCoverLetter: boolean
+  autoAnalyze: boolean
+}
+
+function getStorageApi(): any | null {
+  // Prefer the standard "browser" namespace used by Firefox and polyfilled in some dev setups
+  if (typeof (window as any).browser !== 'undefined' && (window as any).browser.storage?.local) return (window as any).browser
+  if (typeof (window as any).chrome !== 'undefined' && (window as any).chrome.storage?.local) return (window as any).chrome
+  return null
+}
+
+async function storageGet(api: any, key: string): Promise<any> {
+  if (!api) return null
+  // If API returns a promise from .get, await it. Otherwise wrap callback version.
   try {
-    if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-      await chrome.storage.local.set({ appState: state })
+    const maybePromise = api.storage.local.get(key)
+    // If it looks like a promise, await and return
+    if (maybePromise && typeof maybePromise.then === 'function') {
+      const data = await maybePromise
+      return data
+    }
+  } catch (e) {
+    // Fall through to callback style
+  }
+
+  return await new Promise(resolve => {
+    try {
+      api.storage.local.get(key, (result: any) => resolve(result))
+    } catch (e) {
+      resolve(null)
+    }
+  })
+}
+
+async function storageSet(api: any, obj: Record<string, any>): Promise<void> {
+  if (!api) return
+  try {
+    const maybePromise = api.storage.local.set(obj)
+    if (maybePromise && typeof maybePromise.then === 'function') {
+      await maybePromise
       return
     }
-  } catch {}
-  try {
-    localStorage.setItem('appState', JSON.stringify(state))
-  } catch {}
+  } catch (e) {
+    // callback style next
+  }
+
+  return await new Promise(resolve => {
+    try {
+      api.storage.local.set(obj, () => resolve())
+    } catch (e) {
+      resolve()
+    }
+  })
+}
+
+export async function saveStateToStorage(state: AppState) {
+  const api = getStorageApi()
+  if (api) {
+    try { await storageSet(api, { appState: state }); return } catch {}
+  }
+  try { localStorage.setItem('appState', JSON.stringify(state)) } catch {}
 }
 
 export async function loadStateFromStorage(): Promise<AppState | null> {
-  try {
-    if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-      const data = await chrome.storage.local.get('appState')
+  const api = getStorageApi()
+  if (api) {
+    try {
+      const data = await storageGet(api, 'appState')
       return (data?.appState as AppState) || null
-    }
-  } catch {}
+    } catch {}
+  }
   try {
     const s = localStorage.getItem('appState')
     return s ? (JSON.parse(s) as AppState) : null
+  } catch {}
+  return null
+}
+
+// Save settings separately (persist across extension restarts)
+export async function saveSettings(settings: AppSettings) {
+  const api = getStorageApi()
+  if (api) {
+    try { await storageSet(api, { appSettings: settings }); return } catch {}
+  }
+  try { localStorage.setItem('appSettings', JSON.stringify(settings)) } catch {}
+}
+
+// Load settings separately
+export async function loadSettings(): Promise<AppSettings | null> {
+  const api = getStorageApi()
+  if (api) {
+    try {
+      const data = await storageGet(api, 'appSettings')
+      return (data?.appSettings as AppSettings) || null
+    } catch {}
+  }
+  try {
+    const s = localStorage.getItem('appSettings')
+    return s ? (JSON.parse(s) as AppSettings) : null
   } catch {}
   return null
 }

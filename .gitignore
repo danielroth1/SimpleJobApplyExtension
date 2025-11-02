@@ -11,6 +11,8 @@ yarn-error.log*
 .cache/
 .local/
 
+web-ext-artifacts/
+
 # VS Code
 .vscode/*-profile*
 

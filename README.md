@@ -13,6 +13,8 @@ React + Vite MV3 extension that analyzes job postings, highlights your keywords,
 
 ## Develop
 
+See below for special Firefox build instructions.
+
 Install and build:
 
 ```sh
@@ -47,25 +49,19 @@ The build output is in `dist/`, and all extension files from `public/` are copie
 - Job posting editor uses a single font/size by design; it renders highlights after analysis.
 - Data is auto-saved to `chrome.storage.local` (or `localStorage` in dev) and can be exported/imported as JSON.
 
-## CC Attribution Icon
-Creator: IconMarket  
-License: https://creativecommons.org/licenses/by/4.0/  
-Icon: https://icon-icons.com/icon/profession-professions-job-suit-businessman-jobs/255749  
-Icon pack: https://icon-icons.com/pack/Avatar/4019  
-
 ## Firefox build, temporary load, and signing
 
-To build a Firefox artifact (zip/xpi) and overwrite any previous artifact:
+In VS Code, simply run
+```
+Dev: Firefox Extension (Watch)
+```
 
+Or to build a Firefox artifact (zip/xpi) and overwrite any previous artifact:
 ```sh
 npm run build:firefox
 ```
 
-This produces an artifact in `web-ext-artifacts/` (e.g. `simple_job_apply-0.1.0.zip`). You can rename it to `.xpi` if you prefer:
-
-```sh
-mv web-ext-artifacts/simple_job_apply-0.1.0.zip web-ext-artifacts/simple_job_apply-0.1.0.xpi
-```
+This produces an artifact in `web-ext-artifacts/` (e.g. `simple_job_apply-0.1.0.xpi`)
 
 Temporary install in Firefox (dev/test):
 1. Open `about:debugging#/runtime/this-firefox` in Firefox.
@@ -87,3 +83,10 @@ npm run sign:firefox
 ```
 
 Note: `web-ext sign` requires a Mozilla Add-ons developer account and valid API credentials. The signed XPI returned from AMO can be distributed or uploaded to addons.mozilla.org.
+
+
+## CC Attribution Icon
+Creator: IconMarket  
+License: https://creativecommons.org/licenses/by/4.0/  
+Icon: https://icon-icons.com/icon/profession-professions-job-suit-businessman-jobs/255749  
+Icon pack: https://icon-icons.com/pack/Avatar/4019  

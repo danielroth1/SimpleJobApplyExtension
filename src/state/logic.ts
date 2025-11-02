@@ -81,40 +81,141 @@ export function highlightJobPosting(raw: string, paragraphs: Paragraph[], darkMo
 }
 
 export function generateCoverLetterHTML(paragraphs: Paragraph[], highlightEnabled: boolean = false, darkMode: boolean = false): string {
-  // Build the cover letter with proper highlighting and line break handling
-  const parts: string[] = []
-  
-  paragraphs.forEach((p, idx) => {
-    const include = p.included || p.autoInclude
-    if (!include) return
+  // Helper: strip trailing empty <p></p> or <p><br></p> tags
+  const stripTrailingEmptyPs = (html: string): string => {
+    return html.replace(/(?:\s*<p[^>]*>(?:\s*|<br\s*\/?>)*<\/p>\s*)+$/gi, '')
+  }
+
+  // Helper: extract all <p> blocks from HTML, preserving attributes
+  const extractPBlocks = (html: string): Array<{ attrs: string, inner: string }> => {
+    const blocks: Array<{ attrs: string, inner: string }> = []
+    const pRegex = /<p([^>]*)>([\s\S]*?)<\/p>/gi
+    let match: RegExpExecArray | null
     
-    let content = p.html || ''
-    
-    // Only highlight if enabled AND paragraph has keywords
-    if (highlightEnabled && p.keywords.length > 0) {
-      const color = hslForIndex(idx, darkMode)
-      // Wrap the entire paragraph content in a span with background color
-      content = `<span style="background:${color}">${content}</span>`
+    while ((match = pRegex.exec(html)) !== null) {
+      const attrs = match[1] ?? ''
+      const inner = match[2] ?? ''
+      // Skip empty paragraphs (only whitespace or <br>)
+      if (inner.trim() && inner.trim() !== '<br>' && inner.trim() !== '<br/>') {
+        blocks.push({ attrs, inner })
+      }
     }
     
-    // Add placeholder if no keywords
-    if (p.keywords.length === 0 && !content.trim()) {
-      content = '<p style="color: var(--muted); font-style: italic;">[No keywords - add keywords to this paragraph]</p>'
-    }
+    return blocks
+  }
+
+  // Helper: wrap content with highlighting if needed
+  const wrapHighlight = (content: string, paraIdx: number, hasKeywords: boolean): string => {
+    if (!highlightEnabled || !hasKeywords) return content
+    const color = hslForIndex(paraIdx, darkMode)
+    return `<span style="background:${color}">${content}</span>`
+  }
+
+  // Only include paragraphs marked included/autoInclude; keep original index for color selection
+  const included = paragraphs.map((p, idx) => ({ p, idx })).filter(x => x.p.included || x.p.autoInclude)
+  const outputBlocks: string[] = []
+
+  // Walk through included paragraphs, merging runs where noLineBreak is set
+  for (let i = 0; i < included.length; i++) {
+    const start = included[i]
+    const cleanStartHtml = stripTrailingEmptyPs(start.p.html || '')
     
-    // Handle noLineBreak: merge with previous part instead of creating new part
-    if (p.noLineBreak && parts.length > 0) {
-      // Merge without any separator
-      parts[parts.length - 1] = parts[parts.length - 1] + content
-    } else {
-      parts.push(content)
+    // Extract all <p> blocks from this paragraph's HTML
+    const startBlocks = extractPBlocks(cleanStartHtml)
+    
+    // If no <p> blocks found, treat entire content as single block
+    if (startBlocks.length === 0) {
+      const content = cleanStartHtml.trim()
+      if (!content && (start.p.keywords?.length ?? 0) === 0) {
+        // Empty paragraph with no keywords: show placeholder
+        outputBlocks.push('<p style="color: var(--muted); font-style: italic;">[No keywords - add keywords to this paragraph]</p>')
+        continue
+      }
+      if (content) {
+        let combinedContent = wrapHighlight(content, start.idx, (start.p.keywords?.length ?? 0) > 0)
+        
+        // If noLineBreak is set, merge with next paragraphs
+        if (start.p.noLineBreak && i + 1 < included.length) {
+          let currentIdx = i
+          while (currentIdx + 1 < included.length) {
+            const next = included[currentIdx + 1]
+            const cleanNextHtml = stripTrailingEmptyPs(next.p.html || '')
+            const nextBlocks = extractPBlocks(cleanNextHtml)
+            
+            // If no blocks, use raw content
+            if (nextBlocks.length === 0) {
+              const nextContent = cleanNextHtml.trim()
+              if (nextContent) {
+                const nextHighlighted = wrapHighlight(nextContent, next.idx, (next.p.keywords?.length ?? 0) > 0)
+                combinedContent += nextHighlighted
+              }
+            } else {
+              // Add all blocks from next paragraph
+              for (const nextBlock of nextBlocks) {
+                const nextHighlighted = wrapHighlight(nextBlock.inner, next.idx, (next.p.keywords?.length ?? 0) > 0)
+                combinedContent += nextHighlighted
+              }
+            }
+            
+            // Move to next paragraph
+            currentIdx++
+            i = currentIdx
+            
+            // Stop if the next paragraph doesn't have noLineBreak
+            if (!next.p.noLineBreak) break
+          }
+        }
+        
+        outputBlocks.push(`<p>${combinedContent}</p>`)
+      }
+      continue
     }
-  })
-  
-  // Join parts without any separator - each part is a standalone paragraph
-  const result = parts.join('')
-  
-  return result
+
+    // Process each <p> block
+    for (let blockIdx = 0; blockIdx < startBlocks.length; blockIdx++) {
+      const block = startBlocks[blockIdx]
+      let combinedInner = wrapHighlight(block.inner, start.idx, (start.p.keywords?.length ?? 0) > 0)
+
+      // If noLineBreak is set and this is the LAST block of this paragraph, merge with next paragraph
+      const isLastBlock = blockIdx === startBlocks.length - 1
+      if (isLastBlock && start.p.noLineBreak && i + 1 < included.length) {
+        // Collect content from following paragraphs while they also have noLineBreak set
+        let currentIdx = i
+        while (currentIdx + 1 < included.length) {
+          const next = included[currentIdx + 1]
+          const cleanNextHtml = stripTrailingEmptyPs(next.p.html || '')
+          const nextBlocks = extractPBlocks(cleanNextHtml)
+          
+          // If no blocks, use raw content
+          if (nextBlocks.length === 0) {
+            const nextContent = cleanNextHtml.trim()
+            if (nextContent) {
+              const nextHighlighted = wrapHighlight(nextContent, next.idx, (next.p.keywords?.length ?? 0) > 0)
+              combinedInner += nextHighlighted
+            }
+          } else {
+            // Add all blocks from next paragraph
+            for (const nextBlock of nextBlocks) {
+              const nextHighlighted = wrapHighlight(nextBlock.inner, next.idx, (next.p.keywords?.length ?? 0) > 0)
+              combinedInner += nextHighlighted
+            }
+          }
+          
+          // Move to next paragraph
+          currentIdx++
+          i = currentIdx
+          
+          // Stop if the next paragraph doesn't have noLineBreak
+          if (!next.p.noLineBreak) break
+        }
+      }
+
+      // Output the combined block
+      outputBlocks.push(`<p${block.attrs}>${combinedInner}</p>`)
+    }
+  }
+
+  return outputBlocks.join('')
 }
 
 export function cloneState<T>(obj: T): T { return JSON.parse(JSON.stringify(obj)) }

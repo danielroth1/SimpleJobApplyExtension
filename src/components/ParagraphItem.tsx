@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useRef, useEffect } from 'react'
 import { Paragraph } from '@/state/types'
 import { useAppState } from '@/state/AppStateContext'
 import { hslForIndex } from '@/state/logic'
@@ -10,7 +10,28 @@ export default function ParagraphItem({ paragraph, colorIndex }: { paragraph: Pa
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [keywordInput, setKeywordInput] = useState('')
   const [showKeywordInput, setShowKeywordInput] = useState(false)
+  const deleteButtonRef = useRef<HTMLButtonElement>(null)
+  const deletePopupRef = useRef<HTMLDivElement>(null)
   const color = useMemo(() => hslForIndex(colorIndex, state.darkMode), [colorIndex, state.darkMode])
+  
+  // Close delete popup when clicking outside
+  useEffect(() => {
+    if (!showDeleteConfirm) return
+    
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        deletePopupRef.current && 
+        !deletePopupRef.current.contains(event.target as Node) &&
+        deleteButtonRef.current &&
+        !deleteButtonRef.current.contains(event.target as Node)
+      ) {
+        setShowDeleteConfirm(false)
+      }
+    }
+    
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showDeleteConfirm])
   
   // Determine if this paragraph has any matched keywords
   const hasMatchedKeywords = useMemo(() => 
@@ -65,8 +86,8 @@ export default function ParagraphItem({ paragraph, colorIndex }: { paragraph: Pa
           <>
             <button className={`toggle ${paragraph.included ? 'active' : ''}`} title="Included in cover letter" onClick={() => actions.updateParagraph(paragraph.id, { included: !paragraph.included })}>✓</button>
             <button className={`toggle ${paragraph.autoInclude ? 'active' : ''}`} title="Always include in cover letter" onClick={() => actions.updateParagraph(paragraph.id, { autoInclude: !paragraph.autoInclude })}>★</button>
-            <button className={`toggle ${paragraph.noLineBreak ? 'active' : ''}`} title="No line break after this paragraph" onClick={() => actions.updateParagraph(paragraph.id, { noLineBreak: !paragraph.noLineBreak })}>↩</button>
-            <button className="toggle delete-btn" title="Delete paragraph" onClick={() => setShowDeleteConfirm(true)}>🗑</button>
+            <button className={`toggle no-break ${paragraph.noLineBreak ? 'active' : ''}`} title="Merge with paragraph below" onClick={() => actions.updateParagraph(paragraph.id, { noLineBreak: !paragraph.noLineBreak })}>⏎</button>
+            <button ref={deleteButtonRef} className="toggle delete-btn" title="Delete paragraph" onClick={() => setShowDeleteConfirm(true)}>🗑</button>
           </>
         )}
       </div>
@@ -148,18 +169,57 @@ export default function ParagraphItem({ paragraph, colorIndex }: { paragraph: Pa
             dangerouslySetInnerHTML={{ __html: paragraph.html }}
           />
         )}
-        {showDeleteConfirm && (
-          <div className="modal-backdrop" onClick={() => setShowDeleteConfirm(false)}>
-            <div className="modal" onClick={(e) => e.stopPropagation()}>
-              <h4>Delete Paragraph?</h4>
-              <p>Are you sure you want to delete this paragraph? This action cannot be undone.</p>
-              <div className="row">
-                <button onClick={() => setShowDeleteConfirm(false)}>Cancel</button>
-                <button onClick={() => {
+        {showDeleteConfirm && deleteButtonRef.current && (
+          <div 
+            ref={deletePopupRef}
+            style={{
+              position: 'fixed',
+              top: deleteButtonRef.current.getBoundingClientRect().top,
+              left: deleteButtonRef.current.getBoundingClientRect().right + 8,
+              background: 'var(--panel-bg)',
+              border: '1px solid var(--border)',
+              borderRadius: '8px',
+              padding: '12px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              zIndex: 1000,
+              minWidth: '200px',
+              maxWidth: '280px',
+            }}
+          >
+            <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: 'var(--text)' }}>Delete Paragraph?</div>
+            <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '12px' }}>This action cannot be undone.</div>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button 
+                onClick={() => setShowDeleteConfirm(false)}
+                style={{
+                  padding: '4px 12px',
+                  fontSize: '12px',
+                  border: '1px solid var(--border)',
+                  borderRadius: '4px',
+                  background: 'var(--input-bg)',
+                  color: 'var(--text)',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => {
                   actions.deleteParagraph(paragraph.id)
                   setShowDeleteConfirm(false)
-                }} style={{ background: '#ef4444', color: 'white', borderColor: '#ef4444' }}>Delete</button>
-              </div>
+                }}
+                style={{
+                  padding: '4px 12px',
+                  fontSize: '12px',
+                  border: '1px solid #ef4444',
+                  borderRadius: '4px',
+                  background: '#ef4444',
+                  color: 'white',
+                  cursor: 'pointer',
+                }}
+              >
+                Delete
+              </button>
             </div>
           </div>
         )}

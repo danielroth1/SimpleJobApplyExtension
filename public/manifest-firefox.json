@@ -34,7 +34,8 @@
   ],
   "sidebar_action": {
     "default_panel": "index.html",
-    "default_title": "Simple Job Apply"
+    "default_title": "Simple Job Apply",
+    "default_icon": "icon.ico"
   },
   "optional_permissions": []
 }

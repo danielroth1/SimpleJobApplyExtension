@@ -59,3 +59,25 @@ if (runtime.runtime?.onMessage) {
   
   console.log('[Background-FF] Message listener registered')
 }
+
+// Open the sidebar when the toolbar button is clicked (Firefox)
+// Firefox exposes `sidebarAction.open()` which we can call to show the sidebar programmatically.
+if (runtime.browserAction?.onClicked) {
+  try {
+    runtime.browserAction.onClicked.addListener((tab) => {
+      console.log('[Background-FF] browserAction clicked, attempting to open sidebar')
+      if (runtime.sidebarAction?.open) {
+        runtime.sidebarAction.open().then(() => {
+          console.log('[Background-FF] Sidebar opened')
+        }).catch((err) => {
+          console.error('[Background-FF] Failed to open sidebar:', err)
+        })
+      } else {
+        console.warn('[Background-FF] sidebarAction.open is not available in this runtime')
+      }
+    })
+    console.log('[Background-FF] browserAction.onClicked listener registered')
+  } catch (e) {
+    console.error('[Background-FF] Error registering browserAction listener:', e)
+  }
+}

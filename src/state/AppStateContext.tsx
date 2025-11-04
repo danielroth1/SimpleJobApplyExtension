@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { AppActions, AppState, Paragraph } from './types'
 import { cloneState, generateCoverLetterHTML, highlightJobPosting, hslForIndex } from './logic'
-import { loadStateFromStorage, saveStateToStorage, downloadJson, readJsonFile, getPageText, readClipboardText, saveSettings, loadSettings, type AppSettings } from '@/utils/storage'
+import { loadStateFromStorage, saveStateToStorage, downloadJson, readJsonFile, getPageText, getPageHtml, downloadFile, readClipboardText, saveSettings, loadSettings, type AppSettings } from '@/utils/storage'
 
 const AppStateContext = createContext<{ state: AppState, actions: AppActions } | null>(null)
 
@@ -235,6 +235,21 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     }
   }, [setJobPostingRaw, analyzeNow])
 
+  const downloadCurrentPageHtml = useCallback(async () => {
+    try {
+      const html = await getPageHtml()
+      if (!html) {
+        console.error('[downloadCurrentPageHtml] Failed to retrieve page HTML')
+        return
+      }
+      const filename = `page-${Date.now()}.html`
+      await downloadFile(html, filename, 'text/html')
+      console.log('[downloadCurrentPageHtml] Download triggered:', filename)
+    } catch (e) {
+      console.error('[downloadCurrentPageHtml] Error:', e)
+    }
+  }, [])
+
   // Listen for background-triggered auto-analyze messages (after analyzeCurrentPage is defined)
   useEffect(() => {
   const api = (window as any).browser ?? (window as any).chrome
@@ -310,6 +325,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       analyzeNow,
       generateCoverLetter,
       saveToFile,
+      downloadCurrentPageHtml,
       loadFromFile,
       pasteFromClipboard,
       analyzeCurrentPage,

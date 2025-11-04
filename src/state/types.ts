@@ -34,6 +34,7 @@ export type AppActions = {
   loadFromFile: (file: File) => Promise<void>
   pasteFromClipboard: () => Promise<void>
   analyzeCurrentPage: () => Promise<void>
+  downloadCurrentPageHtml: () => Promise<void>
   toggleDarkMode: () => void
   toggleHighlightInCoverLetter: () => void
   toggleAutoAnalyze: () => void

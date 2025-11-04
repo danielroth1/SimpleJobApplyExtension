@@ -120,6 +120,18 @@ export async function downloadJson(obj: any, filename: string) {
   URL.revokeObjectURL(url)
 }
 
+export async function downloadFile(data: string, filename: string, mime = 'text/html') {
+  const blob = new Blob([data], { type: mime })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
 export async function readJsonFile(file: File): Promise<any | null> {
   return new Promise(resolve => {
     const reader = new FileReader()
@@ -179,6 +191,49 @@ export async function getPageText(): Promise<string | null> {
     return null
   } catch (e) {
     console.error('[getPageText] Error:', e)
+    return null
+  }
+}
+
+export async function getPageHtml(): Promise<string | null> {
+  const isExt = EXT_PROTOCOLS.includes(window.location.protocol)
+  if (!isExt) {
+    // Dev fallback
+    return document.documentElement?.outerHTML || document.documentElement?.innerHTML || ''
+  }
+
+  try {
+    const api = typeof (window as any).browser !== 'undefined' ? (window as any).browser : chrome
+    const [tab] = await api.tabs.query({ active: true, currentWindow: true })
+    console.log('[getPageHtml] Active tab:', tab?.url)
+
+    if (!tab?.id) {
+      console.error('[getPageHtml] No active tab found')
+      return null
+    }
+
+    let lastError: any = null
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        if (attempt > 0) {
+          console.log(`[getPageHtml] Retry attempt ${attempt + 1}/3 after ${attempt * 500}ms delay`)
+          await new Promise(resolve => setTimeout(resolve, attempt * 500))
+        }
+
+        console.log('[getPageHtml] Sending SIMPLE_GET_PAGE_HTML to tab', tab.id)
+        const resp = await api.tabs.sendMessage(tab.id, { type: 'SIMPLE_GET_PAGE_HTML' })
+        console.log('[getPageHtml] Response:', resp)
+        return resp?.html || null
+      } catch (e) {
+        lastError = e
+        console.warn(`[getPageHtml] Attempt ${attempt + 1} failed:`, e)
+      }
+    }
+
+    console.error('[getPageHtml] All retry attempts failed:', lastError)
+    return null
+  } catch (e) {
+    console.error('[getPageHtml] Error:', e)
     return null
   }
 }

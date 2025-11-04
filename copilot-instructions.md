@@ -4,6 +4,10 @@ These instructions guide AI code generation in this project. Treat them as hard 
 
 ## General principles
 - should be available as browser extension that works for chrome and firefox -> use Manifest V3
+- always perform typecheck after code generation
+- prefer modular, testable, and maintainable code
+- prefer readability and clarity over cleverness or brevity
+- prefer explicitness over implicitness
 
 ## Creating Git commit messages
 When generating git commit messages, follow this format:

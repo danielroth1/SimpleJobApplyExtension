@@ -71,7 +71,7 @@ async function waitForLinkedInJobToLoad(maxWait = 10000) {
       } else {
         console.log(`[ContentScript] Still waiting... (${elapsed}ms, body: ${document.body?.innerText?.length || 0} chars)`)
       }
-    }, 500) // Check every 500ms
+    }, 200) // Check every 200ms
   })
 }
 
@@ -159,7 +159,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
               console.log('[ContentScript] LinkedIn detected, waiting for job to load...')
               await waitForLinkedInJobToLoad()
             }
-            
             const el = await findElementWithRetry(selector)
             if (el) {
               text = el.innerText
@@ -195,6 +194,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         sendResponse({ ok: false, text: document.body?.innerText || '' })
       }
     })()
+    return true
+  }
+
+  if (msg?.type === 'SIMPLE_GET_PAGE_HTML') {
+    try {
+      const html = document.documentElement?.outerHTML || document.documentElement?.innerHTML || document.body?.innerHTML || ''
+      sendResponse({ ok: true, html })
+    } catch (e) {
+      sendResponse({ ok: false, html: '' })
+    }
     return true
   }
   

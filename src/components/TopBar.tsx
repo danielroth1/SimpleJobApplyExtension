@@ -59,6 +59,10 @@ export default function TopBar() {
               <span>Load</span>
             </div>
             <div className="settings-menu-divider" />
+            <div className="settings-menu-item" onClick={() => { actions.downloadCurrentPageHtml(); setShowSettings(false); }} title="Download current page as HTML">
+              <span>⬇️</span>
+              <span>Download page</span>
+            </div>
             <div className="settings-menu-item" onClick={() => { actions.debugPageState(); setShowSettings(false); }} title="Debug: Log page DOM state to console">
               <span>🔍</span>
               <span>Debug</span>

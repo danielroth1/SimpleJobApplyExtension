@@ -1,6 +1,6 @@
 {
   "name": "simple-job-apply-extension",
-  "version": "0.1.3",
+  "version": "0.1.5.1",
   "private": true,
   "type": "module",
   "scripts": {

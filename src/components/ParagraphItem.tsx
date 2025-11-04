@@ -186,6 +186,12 @@ export default function ParagraphItem({ paragraph, colorIndex }: { paragraph: Pa
             contentEditable
             suppressContentEditableWarning
             dangerouslySetInnerHTML={{ __html: paragraph.html }}
+            onBlur={(e) => {
+              const newHtml = e.currentTarget.innerHTML
+              if (newHtml !== paragraph.html) {
+                actions.updateParagraph(paragraph.id, { html: newHtml })
+              }
+            }}
           />
         )}
         {showDeleteConfirm && deleteButtonRef.current && (

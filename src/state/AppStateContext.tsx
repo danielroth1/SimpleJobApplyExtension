@@ -112,7 +112,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const addParagraph = useCallback(() => {
     setState(prev => ({
       ...prev,
-      paragraphs: [...prev.paragraphs, { id: uuid(), html: '<p></p>', keywords: [], noLineBreak: false, autoInclude: false, included: false, collapsed: true }]
+      // New paragraphs should be expanded by default so users can edit immediately
+      paragraphs: [...prev.paragraphs, { id: uuid(), html: '<p></p>', keywords: [], noLineBreak: false, autoInclude: false, included: false, collapsed: false }]
     }))
   }, [])
 

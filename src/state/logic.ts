@@ -1,4 +1,4 @@
-import { AppState, Paragraph } from './types'
+import { AppState, Paragraph, KeywordWithOptions } from './types'
 
 export function hslForIndex(idx: number, darkMode: boolean = false): string {
   const hue = (idx * 47) % 360
@@ -7,6 +7,37 @@ export function hslForIndex(idx: number, darkMode: boolean = false): string {
     return `hsl(${hue} 70% 35%)`
   }
   return `hsl(${hue} 80% 85%)`
+}
+
+// Check if a keyword matches at a specific position in text
+export function isKeywordMatch(
+  text: string, 
+  keyword: KeywordWithOptions, 
+  position: number
+): boolean {
+  const kwTrim = keyword.text.trim()
+  if (!kwTrim) return false
+  
+  const searchText = keyword.matchCase ? text : text.toLowerCase()
+  const searchKeyword = keyword.matchCase ? kwTrim : kwTrim.toLowerCase()
+  
+  // Check if the keyword is at this position
+  if (searchText.substr(position, searchKeyword.length) !== searchKeyword) {
+    return false
+  }
+  
+  // Check whole word match if required
+  if (keyword.matchWholeWord) {
+    const before = position > 0 ? text[position - 1] : ' '
+    const after = position + kwTrim.length < text.length ? text[position + kwTrim.length] : ' '
+    const isWordBoundary = (c: string) => /[\s\W]/.test(c)
+    
+    if (!isWordBoundary(before) || !isWordBoundary(after)) {
+      return false
+    }
+  }
+  
+  return true
 }
 
 function escapeHtml(str: string): string {
@@ -33,21 +64,28 @@ export function highlightJobPosting(raw: string, paragraphs: Paragraph[], darkMo
   type Match = { start: number, end: number, colorIdx: number, keyword: string }
   const matches: Match[] = []
 
-  const lower = raw.toLowerCase()
   paragraphs.forEach((p, paraColorIdx) => {
     const set = new Set<string>()
     p.keywords.forEach(kw => {
-      const kwTrim = kw.trim()
+      const kwTrim = kw.text.trim()
       if (!kwTrim) return
-      const kwLower = kwTrim.toLowerCase()
-      // Find all occurrences (simple substring)
+      
+      const searchText = kw.matchCase ? raw : raw.toLowerCase()
+      const searchKeyword = kw.matchCase ? kwTrim : kwTrim.toLowerCase()
+      
+      // Find all occurrences
       let from = 0
       while (true) {
-        const idx = lower.indexOf(kwLower, from)
+        const idx = searchText.indexOf(searchKeyword, from)
         if (idx === -1) break
-        matches.push({ start: idx, end: idx + kwLower.length, colorIdx: paraColorIdx, keyword: kwTrim })
-        set.add(kwTrim)
-        from = idx + kwLower.length
+        
+        // Use the extracted matching logic
+        if (isKeywordMatch(raw, kw, idx)) {
+          matches.push({ start: idx, end: idx + kwTrim.length, colorIdx: paraColorIdx, keyword: kwTrim })
+          set.add(kwTrim)
+        }
+        
+        from = idx + 1
       }
     })
     if (set.size) matched.set(p.id, set)

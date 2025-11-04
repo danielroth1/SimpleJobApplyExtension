@@ -1,12 +1,24 @@
+export type KeywordWithOptions = {
+  text: string
+  matchWholeWord: boolean
+  matchCase: boolean
+}
+
 export type Paragraph = {
   id: string
   html: string
-  keywords: string[]
+  keywords: KeywordWithOptions[]
   noLineBreak: boolean
   autoInclude: boolean
   included: boolean
   collapsed: boolean
   lastMatchedKeywords?: string[]
+}
+
+export type SiteRule = {
+  domain: string
+  selector: string
+  description?: string
 }
 
 export type AppState = {
@@ -18,6 +30,8 @@ export type AppState = {
   darkMode: boolean
   highlightInCoverLetter: boolean
   autoAnalyze: boolean
+  debugMode: boolean
+  siteRules: SiteRule[]
 }
 
 export type AppActions = {
@@ -25,6 +39,7 @@ export type AppActions = {
   updateParagraph: (paragraphId: string, patch: Partial<Paragraph> | ((prev: Paragraph) => Partial<Paragraph>)) => void
   deleteParagraph: (paragraphId: string) => void
   addKeyword: (paragraphId: string, keyword: string) => void
+  updateKeyword: (paragraphId: string, oldText: string, updates: Partial<KeywordWithOptions>) => void
   removeKeyword: (paragraphId: string, keyword: string) => void
   reorderParagraphs: (fromIndex: number, toIndex: number) => void
   setJobPostingRaw: (raw: string) => void
@@ -38,6 +53,12 @@ export type AppActions = {
   toggleDarkMode: () => void
   toggleHighlightInCoverLetter: () => void
   toggleAutoAnalyze: () => void
+  toggleDebugMode: () => void
   highlightPageKeywords: () => Promise<void>
   debugPageState: () => Promise<void>
+  addSiteRule: (rule: SiteRule) => void
+  updateSiteRule: (domain: string, updates: Partial<SiteRule>) => void
+  removeSiteRule: (domain: string) => void
+  loadSiteRulesFromFile: (file: File) => Promise<void>
+  saveSiteRulesToFile: () => Promise<void>
 }

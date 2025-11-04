@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { AppActions, AppState, Paragraph } from './types'
+import { AppActions, AppState, Paragraph, KeywordWithOptions, SiteRule } from './types'
 import { cloneState, generateCoverLetterHTML, highlightJobPosting, hslForIndex } from './logic'
-import { loadStateFromStorage, saveStateToStorage, downloadJson, readJsonFile, getPageText, getPageHtml, downloadFile, readClipboardText, saveSettings, loadSettings, type AppSettings } from '@/utils/storage'
+import { loadStateFromStorage, saveStateToStorage, downloadJson, readJsonFile, getPageText, getPageHtml, downloadFile, readClipboardText, saveSettings, loadSettings, type AppSettings, saveSiteRules, loadSiteRules } from '@/utils/storage'
 
 const AppStateContext = createContext<{ state: AppState, actions: AppActions } | null>(null)
 
@@ -17,7 +17,7 @@ function getSystemThemePreference(): boolean {
 
 const defaultState: AppState = {
   paragraphs: [
-    { id: uuid(), html: '<p>Dear Hiring Manager,</p>', keywords: ['React', 'TypeScript'], noLineBreak: false, autoInclude: false, included: false, collapsed: true }
+    { id: uuid(), html: '<p>Dear Hiring Manager,</p>', keywords: [], noLineBreak: false, autoInclude: false, included: false, collapsed: true }
   ],
   jobPostingRaw: '',
   jobPostingHTML: '',
@@ -26,13 +26,27 @@ const defaultState: AppState = {
   darkMode: getSystemThemePreference(),
   highlightInCoverLetter: true,
   autoAnalyze: true,
+  debugMode: false,
+  siteRules: [
+    { domain: 'linkedin.com', selector: 'article.jobs-description__container', description: 'LinkedIn job postings' },
+    { domain: 'indeed.com', selector: '[data-test-id="job-description"]', description: 'Indeed job postings' },
+  ],
 }
 
 function normalizeLoadedState(s: Partial<AppState> | null): AppState {
   if (!s) return defaultState
   // Normalize paragraphs to ensure collapsed field exists (default to true)
+  // Also migrate old string[] keywords to KeywordWithOptions[]
   const paragraphs = Array.isArray(s.paragraphs) 
-    ? s.paragraphs.map(p => ({ ...p, collapsed: p.collapsed ?? true }))
+    ? s.paragraphs.map(p => {
+        const keywords = p.keywords.map(kw => {
+          if (typeof kw === 'string') {
+            return { text: kw, matchWholeWord: false, matchCase: false }
+          }
+          return kw
+        })
+        return { ...p, collapsed: p.collapsed ?? true, keywords }
+      })
     : defaultState.paragraphs
   return {
     paragraphs,
@@ -43,6 +57,8 @@ function normalizeLoadedState(s: Partial<AppState> | null): AppState {
     darkMode: s.darkMode ?? defaultState.darkMode,
     highlightInCoverLetter: s.highlightInCoverLetter ?? defaultState.highlightInCoverLetter,
     autoAnalyze: s.autoAnalyze ?? defaultState.autoAnalyze,
+    debugMode: s.debugMode ?? defaultState.debugMode,
+    siteRules: s.siteRules ?? defaultState.siteRules,
   }
 }
 
@@ -51,13 +67,17 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   // Load from storage on init (both state and settings)
   useEffect(() => {
-    Promise.all([loadStateFromStorage(), loadSettings()]).then(([s, settings]) => {
+    Promise.all([loadStateFromStorage(), loadSettings(), loadSiteRules()]).then(([s, settings, rules]) => {
       const normalizedState = normalizeLoadedState(s)
       if (settings) {
         // Merge loaded settings into state
         normalizedState.darkMode = settings.darkMode
         normalizedState.highlightInCoverLetter = settings.highlightInCoverLetter
         normalizedState.autoAnalyze = settings.autoAnalyze
+        normalizedState.debugMode = settings.debugMode
+      }
+      if (rules) {
+        normalizedState.siteRules = rules
       }
       setState(normalizedState)
     })
@@ -75,10 +95,17 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       darkMode: state.darkMode,
       highlightInCoverLetter: state.highlightInCoverLetter,
       autoAnalyze: state.autoAnalyze,
+      debugMode: state.debugMode,
     }
     const t = setTimeout(() => { saveSettings(settings) }, 300)
     return () => clearTimeout(t)
-  }, [state.darkMode, state.highlightInCoverLetter, state.autoAnalyze])
+  }, [state.darkMode, state.highlightInCoverLetter, state.autoAnalyze, state.debugMode])
+
+  // Save site rules whenever they change
+  useEffect(() => {
+    const t = setTimeout(() => { saveSiteRules(state.siteRules) }, 300)
+    return () => clearTimeout(t)
+  }, [state.siteRules])
 
   
 
@@ -108,15 +135,33 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const addKeyword = useCallback((paragraphId: string, keyword: string) => {
-    updateParagraph(paragraphId, (prev: Paragraph) => ({ keywords: Array.from(new Set([...(prev.keywords || []), keyword])) }))
+    updateParagraph(paragraphId, (prev: Paragraph) => {
+      const existingTexts = new Set(prev.keywords.map(k => k.text))
+      if (existingTexts.has(keyword)) return {}
+      return {
+        keywords: [...prev.keywords, { text: keyword, matchWholeWord: false, matchCase: false }]
+      }
+    })
   }, [updateParagraph])
+
+  const updateKeyword = useCallback((paragraphId: string, oldText: string, updates: Partial<KeywordWithOptions>) => {
+    setState(prev => {
+      const next = cloneState(prev)
+      const p = next.paragraphs.find(p => p.id === paragraphId)
+      if (!p) return prev
+      const kw = p.keywords.find(k => k.text === oldText)
+      if (!kw) return prev
+      Object.assign(kw, updates)
+      return next
+    })
+  }, [])
 
   const removeKeyword = useCallback((paragraphId: string, keyword: string) => {
     setState(prev => {
       const next = cloneState(prev)
       const p = next.paragraphs.find(p => p.id === paragraphId)
       if (!p) return prev
-      p.keywords = p.keywords.filter(k => k !== keyword)
+      p.keywords = p.keywords.filter(k => k.text !== keyword)
       return next
     })
   }, [])
@@ -146,25 +191,32 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         return
       }
       
-      // Build keyword color map
+      // Build keyword color map - only include matched keywords
       const keywordColorMap: Record<string, string> = {}
       state.paragraphs.forEach((p, idx) => {
         const color = hslForIndex(idx, state.darkMode)
+        // Only include keywords that actually matched
+        const matchedKeywords = p.lastMatchedKeywords || []
         p.keywords.forEach(kw => {
-          keywordColorMap[kw.toLowerCase()] = color
+          if (matchedKeywords.includes(kw.text)) {
+            // Store the keyword with its match options
+            const key = JSON.stringify({ text: kw.text, matchWholeWord: kw.matchWholeWord, matchCase: kw.matchCase })
+            keywordColorMap[key] = color
+          }
         })
       })
       
       console.log('[highlightPageKeywords] Sending SIMPLE_HIGHLIGHT_KEYWORDS to tab', tab.id)
       await api.tabs.sendMessage(tab.id, { 
         type: 'SIMPLE_HIGHLIGHT_KEYWORDS', 
-        keywords: keywordColorMap 
+        keywords: keywordColorMap,
+        siteRules: state.siteRules,
       })
       console.log('[highlightPageKeywords] Message sent successfully')
     } catch (e) {
       console.error('[highlightPageKeywords] Failed to highlight keywords on page:', e)
     }
-  }, [state.paragraphs, state.darkMode])
+  }, [state.paragraphs, state.darkMode, state.siteRules])
 
   const analyzeNow = useCallback(() => {
     setState(prev => {
@@ -174,18 +226,45 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       // Update included flags and matched keywords
       next.paragraphs.forEach(p => {
         const mset = matched.get(p.id) || new Set<string>()
-        const paragraphMatched = p.keywords.filter(k => mset.has(k))
+        const paragraphMatched = p.keywords.filter(k => mset.has(k.text)).map(k => k.text)
         p.lastMatchedKeywords = paragraphMatched
         p.included = paragraphMatched.length > 0;
         if (p.autoInclude) p.included = true
       })
       // Generate cover letter automatically after analysis
       next.coverLetterHTML = generateCoverLetterHTML(next.paragraphs, next.highlightInCoverLetter, next.darkMode)
+      
+      // Immediately send highlight message with the updated state
+      setTimeout(() => {
+        const api = (window as any).browser ?? (window as any).chrome
+        api.tabs.query({ active: true, currentWindow: true }).then(([tab]: any) => {
+          if (!tab?.id) return
+          
+          // Build keyword color map with the UPDATED paragraphs
+          const keywordColorMap: Record<string, string> = {}
+          next.paragraphs.forEach((p, idx) => {
+            const color = hslForIndex(idx, next.darkMode)
+            const matchedKeywords = p.lastMatchedKeywords || []
+            p.keywords.forEach(kw => {
+              if (matchedKeywords.includes(kw.text)) {
+                const key = JSON.stringify({ text: kw.text, matchWholeWord: kw.matchWholeWord, matchCase: kw.matchCase })
+                keywordColorMap[key] = color
+              }
+            })
+          })
+          
+          console.log('[analyzeNow] Sending SIMPLE_HIGHLIGHT_KEYWORDS with updated keywords')
+          api.tabs.sendMessage(tab.id, { 
+            type: 'SIMPLE_HIGHLIGHT_KEYWORDS', 
+            keywords: keywordColorMap,
+            siteRules: next.siteRules,
+          }).catch((e: any) => console.error('Failed to send highlight message:', e))
+        })
+      }, 100)
+      
       return next
     })
-    // Also highlight on the actual page after state update
-    setTimeout(() => highlightPageKeywords(), 100)
-  }, [highlightPageKeywords])
+  }, [])
 
   const generateCoverLetter = useCallback(() => {
     setState(prev => ({ ...prev, coverLetterHTML: generateCoverLetterHTML(prev.paragraphs, prev.highlightInCoverLetter, prev.darkMode) }))
@@ -228,12 +307,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, [setJobPostingRaw, analyzeNow])
 
   const analyzeCurrentPage = useCallback(async () => {
-    const text = await getPageText()
+    const text = await getPageText(state.siteRules)
     if (text) {
       setJobPostingRaw(text)
       setTimeout(() => analyzeNow(), 0)
     }
-  }, [setJobPostingRaw, analyzeNow])
+  }, [setJobPostingRaw, analyzeNow, state.siteRules])
 
   const downloadCurrentPageHtml = useCallback(async () => {
     try {
@@ -291,6 +370,64 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setState(prev => ({ ...prev, autoAnalyze: !prev.autoAnalyze }))
   }, [])
 
+  const toggleDebugMode = useCallback(() => {
+    setState(prev => ({ ...prev, debugMode: !prev.debugMode }))
+  }, [])
+
+  const addSiteRule = useCallback((rule: SiteRule) => {
+    setState(prev => {
+      const exists = prev.siteRules.some(r => r.domain === rule.domain)
+      if (exists) return prev
+      return { ...prev, siteRules: [...prev.siteRules, rule] }
+    })
+  }, [])
+
+  const updateSiteRule = useCallback((domain: string, updates: Partial<SiteRule>) => {
+    setState(prev => {
+      const next = cloneState(prev)
+      const rule = next.siteRules.find(r => r.domain === domain)
+      if (!rule) return prev
+      Object.assign(rule, updates)
+      return next
+    })
+  }, [])
+
+  const removeSiteRule = useCallback((domain: string) => {
+    setState(prev => ({
+      ...prev,
+      siteRules: prev.siteRules.filter(r => r.domain !== domain)
+    }))
+  }, [])
+
+  const loadSiteRulesFromFile = useCallback(async (file: File) => {
+    const data = await readJsonFile(file)
+    if (data && Array.isArray(data)) {
+      // Validate and merge rules
+      setState(prev => {
+        const validRules = data.filter((r: any) => 
+          r && typeof r === 'object' && typeof r.domain === 'string' && typeof r.selector === 'string'
+        ) as SiteRule[]
+        
+        const merged = [...prev.siteRules]
+        validRules.forEach(newRule => {
+          const existingIdx = merged.findIndex(r => r.domain === newRule.domain)
+          if (existingIdx >= 0) {
+            // Rule exists - could show dialog here, for now just replace
+            merged[existingIdx] = newRule
+          } else {
+            merged.push(newRule)
+          }
+        })
+        
+        return { ...prev, siteRules: merged }
+      })
+    }
+  }, [])
+
+  const saveSiteRulesToFile = useCallback(async () => {
+    await downloadJson(state.siteRules, `site-rules.json`)
+  }, [state.siteRules])
+
   const debugPageState = useCallback(async () => {
     const api = (window as any).browser ?? (window as any).chrome
     if (!api?.tabs?.query) {
@@ -306,11 +443,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       }
       
       console.log('🔍 Sending DEBUG_PAGE_STATE message to tab:', tab.id)
-      api.tabs.sendMessage(tab.id, { type: 'DEBUG_PAGE_STATE' })
+      api.tabs.sendMessage(tab.id, { type: 'DEBUG_PAGE_STATE', siteRules: state.siteRules })
     } catch (e) {
       console.error('Debug error:', e)
     }
-  }, [])
+  }, [state.siteRules])
 
   const value = useMemo(() => ({
     state,
@@ -319,6 +456,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       updateParagraph,
       deleteParagraph,
       addKeyword,
+      updateKeyword,
       removeKeyword,
       reorderParagraphs,
       setJobPostingRaw,
@@ -332,10 +470,16 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       toggleDarkMode,
       toggleHighlightInCoverLetter,
       toggleAutoAnalyze,
+      toggleDebugMode,
       highlightPageKeywords,
       debugPageState,
+      addSiteRule,
+      updateSiteRule,
+      removeSiteRule,
+      loadSiteRulesFromFile,
+      saveSiteRulesToFile,
     }
-  }), [state, addParagraph, updateParagraph, deleteParagraph, addKeyword, removeKeyword, reorderParagraphs, setJobPostingRaw, analyzeNow, generateCoverLetter, saveToFile, loadFromFile, pasteFromClipboard, analyzeCurrentPage, toggleDarkMode, toggleHighlightInCoverLetter, toggleAutoAnalyze, highlightPageKeywords, debugPageState])
+  }), [state, addParagraph, updateParagraph, deleteParagraph, addKeyword, updateKeyword, removeKeyword, reorderParagraphs, setJobPostingRaw, analyzeNow, generateCoverLetter, saveToFile, loadFromFile, pasteFromClipboard, analyzeCurrentPage, toggleDarkMode, toggleHighlightInCoverLetter, toggleAutoAnalyze, toggleDebugMode, highlightPageKeywords, debugPageState, addSiteRule, updateSiteRule, removeSiteRule, loadSiteRulesFromFile, saveSiteRulesToFile])
 
   return (
     <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>

@@ -99,7 +99,7 @@ export default function ParagraphGroups() {
           </div>
         </SortableContext>
       </DndContext>
-      <div className="align-items-center mx-auto justify-content-center text-center">
+      <div className="align-items-center mx-auto justify-content-center text-center" style={{ marginBottom: '20px' }}>
         <button className="btn btn-outline-secondary" onClick={actions.addParagraph}>+ Add Paragraph</button>
       </div>
     </div>

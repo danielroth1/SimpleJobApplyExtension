@@ -1,10 +1,12 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { useAppState } from '@/state/AppStateContext'
+import SiteRulesEditor from './SiteRulesEditor'
 
 export default function TopBar() {
   const { state, actions } = useAppState()
   const fileRef = useRef<HTMLInputElement>(null)
   const [showSettings, setShowSettings] = useState(false)
+  const [showSiteRules, setShowSiteRules] = useState(false)
   const settingsRef = useRef<HTMLDivElement>(null)
 
   // Close settings menu when clicking outside
@@ -33,7 +35,18 @@ export default function TopBar() {
         🌐 Analyze current page
       </button>
       <div className="settings-container" ref={settingsRef}>
-        <button className="btn btn-outline-secondary btn-sm" onClick={() => setShowSettings(!showSettings)}>⚙</button>
+        <button 
+          className="btn btn-outline-secondary btn-sm" 
+          onClick={(e) => {
+            // Shift+click to toggle debug mode
+            if (e.shiftKey) {
+              actions.toggleDebugMode()
+            } else {
+              setShowSettings(!showSettings)
+            }
+          }}
+          title={state.debugMode ? "Settings (Debug Mode ON - Shift+click to disable)" : "Settings (Shift+click to enable Debug Mode)"}
+        >⚙</button>
         {showSettings && (
           <div className="settings-menu">
             <div className="settings-menu-item" onClick={actions.toggleDarkMode}>
@@ -59,14 +72,23 @@ export default function TopBar() {
               <span>Load</span>
             </div>
             <div className="settings-menu-divider" />
-            <div className="settings-menu-item" onClick={() => { actions.downloadCurrentPageHtml(); setShowSettings(false); }} title="Download current page as HTML">
-              <span>⬇️</span>
-              <span>Download page</span>
+            <div className="settings-menu-item" onClick={() => { setShowSiteRules(true); setShowSettings(false); }}>
+              <span>🌐</span>
+              <span>Site Rules</span>
             </div>
-            <div className="settings-menu-item" onClick={() => { actions.debugPageState(); setShowSettings(false); }} title="Debug: Log page DOM state to console">
-              <span>🔍</span>
-              <span>Debug</span>
-            </div>
+            {state.debugMode && (
+              <>
+                <div className="settings-menu-divider" />
+                <div className="settings-menu-item" onClick={() => { actions.downloadCurrentPageHtml(); setShowSettings(false); }} title="Download current page as HTML">
+                  <span>⬇️</span>
+                  <span>Download page</span>
+                </div>
+                <div className="settings-menu-item" onClick={() => { actions.debugPageState(); setShowSettings(false); }} title="Debug: Log page DOM state to console">
+                  <span>🔍</span>
+                  <span>Debug</span>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -75,6 +97,8 @@ export default function TopBar() {
         if (f) actions.loadFromFile(f)
         e.currentTarget.value = ''
       }} />
+      
+      {showSiteRules && <SiteRulesEditor onClose={() => setShowSiteRules(false)} />}
     </div>
   )
 }

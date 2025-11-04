@@ -1,4 +1,4 @@
-import type { AppState } from '@/state/types'
+import type { AppState, SiteRule } from '@/state/types'
 
 const EXT_PROTOCOLS = ['chrome-extension:', 'moz-extension:']
 
@@ -7,6 +7,7 @@ export type AppSettings = {
   darkMode: boolean
   highlightInCoverLetter: boolean
   autoAnalyze: boolean
+  debugMode: boolean
 }
 
 function getStorageApi(): any | null {
@@ -150,7 +151,7 @@ export async function readClipboardText(): Promise<string | null> {
   } catch { return null }
 }
 
-export async function getPageText(): Promise<string | null> {
+export async function getPageText(siteRules?: any[]): Promise<string | null> {
   const isExt = EXT_PROTOCOLS.includes(window.location.protocol)
   if (!isExt) {
     // Dev fallback
@@ -178,7 +179,7 @@ export async function getPageText(): Promise<string | null> {
         }
         
         console.log('[getPageText] Sending SIMPLE_GET_PAGE_TEXT to tab', tab.id)
-        const resp = await api.tabs.sendMessage(tab.id, { type: 'SIMPLE_GET_PAGE_TEXT' })
+        const resp = await api.tabs.sendMessage(tab.id, { type: 'SIMPLE_GET_PAGE_TEXT', siteRules })
         console.log('[getPageText] Response:', resp)
         return resp?.text || null
       } catch (e) {
@@ -237,3 +238,28 @@ export async function getPageHtml(): Promise<string | null> {
     return null
   }
 }
+
+// Site rules storage
+export async function saveSiteRules(rules: SiteRule[]) {
+  const api = getStorageApi()
+  if (api) {
+    try { await storageSet(api, { siteRules: rules }); return } catch {}
+  }
+  try { localStorage.setItem('siteRules', JSON.stringify(rules)) } catch {}
+}
+
+export async function loadSiteRules(): Promise<SiteRule[] | null> {
+  const api = getStorageApi()
+  if (api) {
+    try {
+      const data = await storageGet(api, 'siteRules')
+      return (data?.siteRules as SiteRule[]) || null
+    } catch {}
+  }
+  try {
+    const s = localStorage.getItem('siteRules')
+    return s ? (JSON.parse(s) as SiteRule[]) : null
+  } catch {}
+  return null
+}
+

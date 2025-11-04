@@ -76,8 +76,8 @@ async function waitForLinkedInJobToLoad(maxWait = 10000) {
 }
 
 // Debug function to inspect current page state
-function debugPageState() {
-  const siteRules = {
+function debugPageState(siteRules) {
+  const rules = siteRules || {
     'linkedin.com': 'article.jobs-description__container',
     'indeed.com': '[data-test-id="job-description"]',
   }
@@ -88,7 +88,7 @@ function debugPageState() {
   
   // Check site-specific selectors
   const hostname = window.location.hostname
-  for (const [domain, selector] of Object.entries(siteRules)) {
+  for (const [domain, selector] of Object.entries(rules)) {
     if (hostname.includes(domain)) {
       console.log(`\n📍 Checking site-specific selector: ${selector}`)
       try {
@@ -144,22 +144,19 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     (async () => {
       try {
         let text = ''
-        // Site-specific extraction rules
-        const siteRules = {
-          'linkedin.com': 'article.jobs-description__container',
-          'indeed.com': '[data-test-id="job-description"]',
-        }
+        // Site-specific extraction rules (from extension state or fallback)
+        const siteRules = msg.siteRules || [];
       
         // Check if we're on a site with specific rules
         const hostname = window.location.hostname
-        for (const [domain, selector] of Object.entries(siteRules)) {
-          if (hostname.includes(domain)) {
+        for (const rule of siteRules) {
+          if (hostname.includes(rule.domain)) {
             // Special handling for LinkedIn: wait for content to load after SPA navigation
-            if (domain === 'linkedin.com') {
+            if (rule.domain === 'linkedin.com') {
               console.log('[ContentScript] LinkedIn detected, waiting for job to load...')
               await waitForLinkedInJobToLoad()
             }
-            const el = await findElementWithRetry(selector)
+            const el = await findElementWithRetry(rule.selector)
             if (el) {
               text = el.innerText
               sendResponse({ ok: true, text })
@@ -210,6 +207,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg?.type === 'SIMPLE_HIGHLIGHT_KEYWORDS') {
     try {
       const keywords = msg.keywords || {}
+      const siteRules = msg.siteRules || []
       
       // Remove existing highlights first
       document.querySelectorAll('.simple-job-highlight').forEach(el => {
@@ -222,12 +220,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       const hostname = window.location.hostname
       let container = document.body
       
-      if (hostname.includes('linkedin.com')) {
-        const linkedInContainer = document.querySelector('article.jobs-description__container')
-        if (linkedInContainer) container = linkedInContainer
-      } else if (hostname.includes('indeed.com')) {
-        const indeedContainer = document.querySelector('[data-test-id="job-description"]')
-        if (indeedContainer) container = indeedContainer
+      for (const rule of siteRules) {
+        if (hostname.includes(rule.domain)) {
+          const siteContainer = document.querySelector(rule.selector)
+          if (siteContainer) {
+            container = siteContainer
+            break
+          }
+        }
       }
       
       // Highlight keywords
@@ -242,7 +242,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
   
   if (msg?.type === 'DEBUG_PAGE_STATE') {
-    debugPageState()
+    debugPageState(msg.siteRules)
     sendResponse({ ok: true })
     return true
   }
@@ -272,17 +272,43 @@ function highlightKeywordsInElement(element, keywordColorMap) {
     const text = textNode.textContent
     if (!text || text.trim().length === 0) return
     
-    const textLower = text.toLowerCase()
     const matches = []
     
-    // Find all keyword matches
-    Object.entries(keywordColorMap).forEach(([keyword, color]) => {
+    // Find all keyword matches with options
+    Object.entries(keywordColorMap).forEach(([keywordJson, color]) => {
+      let kw
+      try {
+        kw = JSON.parse(keywordJson)
+      } catch (e) {
+        // Fallback for old format (simple string)
+        kw = { text: keywordJson, matchWholeWord: false, matchCase: false }
+      }
+      
+      const searchText = kw.matchCase ? text : text.toLowerCase()
+      const searchKeyword = kw.matchCase ? kw.text : kw.text.toLowerCase()
+      
       let idx = 0
       while (true) {
-        idx = textLower.indexOf(keyword, idx)
+        idx = searchText.indexOf(searchKeyword, idx)
         if (idx === -1) break
-        matches.push({ start: idx, end: idx + keyword.length, color })
-        idx += keyword.length
+        
+        // Check whole word match if required
+        let isMatch = true
+        if (kw.matchWholeWord) {
+          const before = idx > 0 ? text[idx - 1] : ' '
+          const after = idx + kw.text.length < text.length ? text[idx + kw.text.length] : ' '
+          const isWordBoundary = (c) => /[\s\W]/.test(c)
+          
+          if (!isWordBoundary(before) || !isWordBoundary(after)) {
+            isMatch = false
+          }
+        }
+        
+        if (isMatch) {
+          matches.push({ start: idx, end: idx + kw.text.length, color })
+        }
+        
+        idx += 1
       }
     })
     

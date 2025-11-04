@@ -4,12 +4,14 @@ import { useAppState } from '@/state/AppStateContext'
 import { hslForIndex } from '@/state/logic'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import KeywordContextMenu from './KeywordContextMenu'
 
 export default function ParagraphItem({ paragraph, colorIndex }: { paragraph: Paragraph, colorIndex: number }) {
   const { actions, state } = useAppState()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [keywordInput, setKeywordInput] = useState('')
   const [showKeywordInput, setShowKeywordInput] = useState(false)
+  const [contextMenu, setContextMenu] = useState<{ keyword: string; x: number; y: number } | null>(null)
   const deleteButtonRef = useRef<HTMLButtonElement>(null)
   const deletePopupRef = useRef<HTMLDivElement>(null)
   const color = useMemo(() => hslForIndex(colorIndex, state.darkMode), [colorIndex, state.darkMode])
@@ -94,12 +96,25 @@ export default function ParagraphItem({ paragraph, colorIndex }: { paragraph: Pa
       <div className="paragraph-main">
         {/* Top bar keywords */}
         <div className="keywords" style={{ borderColor: color }}>
-          {paragraph.keywords.map(k => {
-            const matched = paragraph.lastMatchedKeywords?.includes(k)
+          {paragraph.keywords.map(kw => {
+            const matched = paragraph.lastMatchedKeywords?.includes(kw.text)
             return (
-              <span key={k} className="chip" style={matched ? { background: color } : undefined}>
-                <span>{k}</span>
-                <span className="x" onClick={() => actions.removeKeyword(paragraph.id, k)}>×</span>
+              <span 
+                key={kw.text} 
+                className="chip" 
+                style={matched ? { background: color } : undefined}
+                onContextMenu={(e) => {
+                  e.preventDefault()
+                  setContextMenu({ keyword: kw.text, x: e.clientX, y: e.clientY })
+                }}
+                title={`Right-click for options${kw.matchWholeWord ? ' • Whole word' : ''}${kw.matchCase ? ' • Match case' : ''}`}
+              >
+                <span>{kw.text}</span>
+                <span className="x" onClick={() => {
+                  actions.removeKeyword(paragraph.id, kw.text)
+                  // Re-analyze after removing keyword
+                  setTimeout(() => actions.analyzeNow(), 50)
+                }}>×</span>
               </span>
             )
           })}
@@ -119,6 +134,8 @@ export default function ParagraphItem({ paragraph, colorIndex }: { paragraph: Pa
                   parts.forEach(k => actions.addKeyword(paragraph.id, k))
                   setKeywordInput('')
                   setShowKeywordInput(false)
+                  // Re-analyze after adding keywords
+                  setTimeout(() => actions.analyzeNow(), 50)
                 } else if (e.key === 'Escape') {
                   setKeywordInput('')
                   setShowKeywordInput(false)
@@ -128,6 +145,8 @@ export default function ParagraphItem({ paragraph, colorIndex }: { paragraph: Pa
                 if (keywordInput.trim()) {
                   const parts = keywordInput.split(',').map(s => s.trim()).filter(Boolean)
                   parts.forEach(k => actions.addKeyword(paragraph.id, k))
+                  // Re-analyze after adding keywords
+                  setTimeout(() => actions.analyzeNow(), 50)
                 }
                 setKeywordInput('')
                 setShowKeywordInput(false)
@@ -222,6 +241,25 @@ export default function ParagraphItem({ paragraph, colorIndex }: { paragraph: Pa
               </button>
             </div>
           </div>
+        )}
+        
+        {contextMenu && (
+          <KeywordContextMenu
+            keyword={paragraph.keywords.find(k => k.text === contextMenu.keyword)!}
+            position={{ x: contextMenu.x, y: contextMenu.y }}
+            onClose={() => setContextMenu(null)}
+            onUpdate={(updates) => {
+              actions.updateKeyword(paragraph.id, contextMenu.keyword, updates)
+              // Re-analyze after updating keyword options
+              setTimeout(() => actions.analyzeNow(), 50)
+            }}
+            onDelete={() => {
+              actions.removeKeyword(paragraph.id, contextMenu.keyword)
+              // Re-analyze after deleting keyword
+              setTimeout(() => actions.analyzeNow(), 50)
+            }}
+            color={color}
+          />
         )}
       </div>
     </div>

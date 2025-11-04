@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Simple Job Apply",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Analyze job postings, highlight keywords, and generate cover letters from your own paragraph blocks.",
   "icons": {
     "128": "icon.ico",

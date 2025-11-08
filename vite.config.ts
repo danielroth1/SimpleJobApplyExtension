@@ -6,59 +6,67 @@ import { copyFileSync, readFileSync, writeFileSync } from 'node:fs'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // https://vitejs.dev/config/
-export default defineConfig({
-  plugins: [
-    react(),
-    {
-      name: 'copy-firefox-manifest',
-      closeBundle() {
-        // Read version from package.json to sync across manifests
-        const packageJson = JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8'))
-        const version = packageJson.version
-        
-        // Always copy Firefox manifest for web-ext builds
-        // MV3 side_panel is not well supported in Firefox yet
-        try {
-          const manifestPath = path.resolve(__dirname, 'public/manifest-firefox.json')
-          const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
-          
-          // Update version from package.json
-          manifest.version = version
-          
-          // Write to dist
-          writeFileSync(
-            path.resolve(__dirname, 'dist/manifest.json'),
-            JSON.stringify(manifest, null, 2)
-          )
-          
-          // Copy custom icon from src into dist so manifests referencing "icon.ico" can find it
+export default defineConfig(({ mode }) => {
+  const isFirefox = mode === 'firefox' || process.env.FIREFOX === '1' || process.env.BROWSER === 'firefox'
+
+  return {
+    plugins: [
+      react(),
+      {
+        name: 'copy-extension-manifest',
+        closeBundle() {
+          // Read version from package.json to sync across manifests
+          const packageJson = JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8'))
+          const version = packageJson.version
+
           try {
-            copyFileSync(
-              path.resolve(__dirname, 'src/icon.ico'),
-              path.resolve(__dirname, 'dist/icon.ico')
+            const manifestFile = isFirefox ? 'public/manifest-firefox.json' : 'public/manifest.json'
+            const manifestPath = path.resolve(__dirname, manifestFile)
+            const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
+
+            // Update version from package.json
+            manifest.version = version
+
+            // Write to dist
+            writeFileSync(
+              path.resolve(__dirname, 'dist/manifest.json'),
+              JSON.stringify(manifest, null, 2)
             )
-            console.log('✓ Copied icon.ico to dist')
+
+            // Copy custom icon from src into dist so manifests referencing "icon.ico" can find it
+            try {
+              copyFileSync(
+                path.resolve(__dirname, 'src/icons/icon.ico'),
+                path.resolve(__dirname, 'dist/icon.ico')
+              )
+              console.log('✓ Copied icon.ico to dist')
+            } catch (e) {
+              console.warn('Could not copy icon.ico to dist:', e)
+            }
+
+            if (isFirefox) {
+              console.log(`✓ Copied Firefox MV2 manifest with version ${version}`)
+            } else {
+              console.log(`✓ Copied Chrome MV3 manifest with version ${version}`)
+            }
           } catch (e) {
-            console.warn('Could not copy icon.ico to dist:', e)
+            console.warn('Could not copy manifest:', e)
           }
-          console.log(`✓ Copied Firefox MV2 manifest with version ${version}`)
-        } catch (e) {
-          console.warn('Could not copy Firefox manifest:', e)
         }
       }
-    }
-  ],
-  build: {
-    outDir: 'dist',
-    emptyOutDir: true,
-    sourcemap: true,
-    minify: false,
-  },
-  base: './',
-  publicDir: 'public',
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, 'src')
+    ],
+    build: {
+      outDir: 'dist',
+      emptyOutDir: true,
+      sourcemap: true,
+      minify: false,
+    },
+    base: './',
+    publicDir: 'public',
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, 'src')
+      }
     }
   }
 })

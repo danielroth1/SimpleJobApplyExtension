@@ -3,18 +3,25 @@
   "name": "Simple Job Apply",
   "version": "0.1.5.1",
   "description": "Analyze job postings, highlight keywords, and generate cover letters from your own paragraph blocks.",
+  
   "icons": {
-    "128": "icon.ico",
-    "48": "icon.ico",
-    "32": "icon.ico"
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
   },
-  "browser_action": {
+  "action": {
     "default_title": "Simple Job Apply",
-    "default_icon": "icon.ico"
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
   },
-  "permissions": ["storage", "activeTab", "tabs", "<all_urls>"],
+  "permissions": ["storage", "activeTab", "tabs", "sidePanel"],
   "background": {
-    "scripts": ["background-ff.js"]
+    "service_worker": "background.js"
   },
   "content_scripts": [
     {
@@ -23,8 +30,7 @@
       "run_at": "document_idle"
     }
   ],
-  "sidebar_action": {
-    "default_panel": "index.html",
-    "default_title": "Simple Job Apply"
+  "side_panel": {
+    "default_path": "index.html"
   }
 }

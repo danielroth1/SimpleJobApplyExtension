@@ -12,6 +12,8 @@ yarn-error.log*
 .local/
 
 web-ext-artifacts/
+chrome-artifacts/
+dist.pem
 
 # VS Code
 .vscode/*-profile*

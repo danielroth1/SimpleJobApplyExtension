@@ -90,3 +90,31 @@ Creator: IconMarket
 License: https://creativecommons.org/licenses/by/4.0/  
 Icon: https://icon-icons.com/icon/profession-professions-job-suit-businessman-jobs/255749  
 Icon pack: https://icon-icons.com/pack/Avatar/4019  
+
+## Chrome packaging (.crx)
+
+This project includes a convenience script to build and package a signed Chrome CRX artifact.
+
+- Run:
+
+```sh
+npm run build:chrome
+```
+
+- What it does:
+	- regenerates icons from `src/icons/icon.ico` into `public/icons/`;
+	- runs `vite build` to produce `dist/`;
+	- attempts to use `crx3` (via `npx crx3`) to produce a .crx using your `dist.pem` key; if `crx3` is not available it falls back to Chrome/Chromium's `--pack-extension` CLI.
+
+- Requirements:
+	- A private key file at the repository root named `dist.pem` (this repo already contains one). The key is used to sign the CRX.
+	- A local Chrome or Chromium binary (script will auto-detect common install paths). If Chrome is not detected, set the environment variable `CHROME_PATH` to the browser binary and re-run the command:
+
+```sh
+CHROME_PATH="/path/to/chrome" npm run build:chrome
+```
+
+- Output:
+	- The generated CRX will be placed in `chrome-artifacts/simple_job_apply-<version>.crx`.
+
+If you prefer not to rely on a local Chrome binary, `crx3` (installed via `npm install --save-dev crx3`) is used when available to produce the CRX without invoking Chrome directly.

@@ -5,12 +5,17 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "predev": "npm run generate-icons",
     "build": "vite build",
-    "build:firefox": "npm run build && npx web-ext build --source-dir dist --artifacts-dir web-ext-artifacts --overwrite-dest && VERSION=$(node -p \"require('./package.json').version\") && mv web-ext-artifacts/simple_job_apply-$VERSION.zip web-ext-artifacts/simple_job_apply-$VERSION.xpi",
+    "prebuild": "npm run generate-icons",
+    "build:firefox": "vite build --mode firefox && npx web-ext build --source-dir dist --artifacts-dir web-ext-artifacts --overwrite-dest && VERSION=$(node -p \"require('./package.json').version\") && mv web-ext-artifacts/simple_job_apply-$VERSION.zip web-ext-artifacts/simple_job_apply-$VERSION.xpi",
+    "prebuild:firefox": "npm run generate-icons",
     "sign:firefox": "npx web-ext sign --source-dir dist --artifacts-dir web-ext-artifacts --api-key=$AMO_JWT_ISSUER --api-secret=$AMO_JWT_SECRET --channel=unlisted && for file in web-ext-artifacts/*.zip; do [ -f \"$file\" ] && mv \"$file\" \"${file%.zip}.xpi\"; done",
-    "preview": "vite preview"
-    ,
-    "package_src": "node scripts/package_src.cjs"
+    "preview": "vite preview",
+    "package_src": "node scripts/package_src.cjs",
+    "generate-icons": "node scripts/generate-icons.mjs",
+    "dev:chrome": "concurrently -n vite,chrome -c blue,green \"vite build --watch\" \"web-ext run --source-dir dist --target=chromium\"",
+    "build:chrome": "npm run generate-icons && vite build && node scripts/pack-chrome.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -24,6 +29,10 @@
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.3",
+  "concurrently": "^9.0.1",
+  "icojs": "^0.20.0",
+  "sharp": "^0.33.5",
+  "crx3": "^1.0.5",
     "typescript": "^5.6.3",
     "vite": "^5.4.10",
     "web-ext": "^7.11.0"

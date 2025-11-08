@@ -9,6 +9,37 @@ export function hslForIndex(idx: number, darkMode: boolean = false): string {
   return `hsl(${hue} 80% 85%)`
 }
 
+// Return opaque version of color for preview (removes alpha/transparency)
+export function opaqueColorForIndex(idx: number, darkMode: boolean = false): string {
+  const hue = (idx * 47) % 360
+  if (darkMode) {
+    return `hsl(${hue} 80% 50%)`
+  }
+  return `hsl(${hue} 90% 60%)`
+}
+
+// Get gray color for empty paragraphs
+export function grayColor(darkMode: boolean = false): string {
+  return darkMode ? 'hsl(0 0% 30%)' : 'hsl(0 0% 85%)'
+}
+
+// Find next available color index that's not already used
+export function getNextAvailableColorIndex(paragraphs: Paragraph[], darkMode: boolean): number {
+  const usedColors = new Set<string>()
+  paragraphs.forEach(p => {
+    if (p.color) usedColors.add(p.color)
+  })
+  
+  // Try up to 12 colors in palette
+  for (let i = 0; i < 12; i++) {
+    const color = hslForIndex(i, darkMode)
+    if (!usedColors.has(color)) return i
+  }
+  
+  // If all used, return next index
+  return paragraphs.length
+}
+
 // Check if a keyword matches at a specific position in text
 export function isKeywordMatch(
   text: string, 
@@ -107,7 +138,9 @@ export function highlightJobPosting(raw: string, paragraphs: Paragraph[], darkMo
   let cursor = 0
   for (const m of merged) {
     out += escapeHtml(raw.slice(cursor, m.start))
-    const color = hslForIndex(m.colorIdx, darkMode)
+  // Resolve color from paragraph (stable if user changed)
+  const para = paragraphs[m.colorIdx]
+  const color = (para?.color) ? para.color : hslForIndex(m.colorIdx, darkMode)
     const inner = escapeHtml(raw.slice(m.start, m.end))
     out += `<span style="background:${color}">${inner}</span>`
     cursor = m.end
@@ -145,7 +178,8 @@ export function generateCoverLetterHTML(paragraphs: Paragraph[], highlightEnable
   // Helper: wrap content with highlighting if needed
   const wrapHighlight = (content: string, paraIdx: number, hasKeywords: boolean): string => {
     if (!highlightEnabled || !hasKeywords) return content
-    const color = hslForIndex(paraIdx, darkMode)
+    const p = paragraphs[paraIdx]
+    const color = (p?.color) ? p.color : hslForIndex(paraIdx, darkMode)
     return `<span style="background:${color}">${content}</span>`
   }
 

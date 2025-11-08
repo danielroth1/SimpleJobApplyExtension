@@ -1,6 +1,6 @@
 {
   "name": "simple-job-apply-extension",
-  "version": "0.1.5.1",
+  "version": "0.1.7",
   "private": true,
   "type": "module",
   "scripts": {
@@ -15,7 +15,8 @@
     "package_src": "node scripts/package_src.cjs",
     "generate-icons": "node scripts/generate-icons.mjs",
     "dev:chrome": "concurrently -n vite,chrome -c blue,green \"vite build --watch\" \"web-ext run --source-dir dist --target=chromium\"",
-    "build:chrome": "npm run generate-icons && vite build && node scripts/pack-chrome.mjs"
+    "build:chrome": "npm run generate-icons && vite build && node scripts/pack-chrome.mjs",
+    "watch:firefox": "vite build --watch --mode firefox"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { AppActions, AppState, Paragraph, KeywordWithOptions, SiteRule } from './types'
-import { cloneState, generateCoverLetterHTML, highlightJobPosting, hslForIndex } from './logic'
+import { cloneState, generateCoverLetterHTML, highlightJobPosting, hslForIndex, getNextAvailableColorIndex } from './logic'
 import { loadStateFromStorage, saveStateToStorage, downloadJson, readJsonFile, getPageText, getPageHtml, downloadFile, readClipboardText, saveSettings, loadSettings, type AppSettings, saveSiteRules, loadSiteRules } from '@/utils/storage'
 
 const AppStateContext = createContext<{ state: AppState, actions: AppActions } | null>(null)
@@ -17,7 +17,7 @@ function getSystemThemePreference(): boolean {
 
 const defaultState: AppState = {
   paragraphs: [
-    { id: uuid(), html: '<p>Dear Hiring Manager,</p>', keywords: [], noLineBreak: false, autoInclude: false, included: false, collapsed: true }
+    { id: uuid(), html: '<p>Dear Hiring Manager,</p>', keywords: [], noLineBreak: false, autoInclude: false, included: false, collapsed: true, color: undefined }
   ],
   jobPostingRaw: '',
   jobPostingHTML: '',
@@ -31,6 +31,7 @@ const defaultState: AppState = {
     { domain: 'linkedin.com', selector: 'article.jobs-description__container', description: 'LinkedIn job postings' },
     { domain: 'indeed.com', selector: '[data-test-id="job-description"]', description: 'Indeed job postings' },
   ],
+  forceUniqueColors: true,
 }
 
 function normalizeLoadedState(s: Partial<AppState> | null): AppState {
@@ -45,7 +46,7 @@ function normalizeLoadedState(s: Partial<AppState> | null): AppState {
           }
           return kw
         })
-        return { ...p, collapsed: p.collapsed ?? true, keywords }
+        return { ...p, collapsed: p.collapsed ?? true, keywords, color: p.color }
       })
     : defaultState.paragraphs
   return {
@@ -59,6 +60,7 @@ function normalizeLoadedState(s: Partial<AppState> | null): AppState {
     autoAnalyze: s.autoAnalyze ?? defaultState.autoAnalyze,
     debugMode: s.debugMode ?? defaultState.debugMode,
     siteRules: s.siteRules ?? defaultState.siteRules,
+    forceUniqueColors: s.forceUniqueColors ?? defaultState.forceUniqueColors,
   }
 }
 
@@ -67,7 +69,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   // Load from storage on init (both state and settings)
   useEffect(() => {
-    Promise.all([loadStateFromStorage(), loadSettings(), loadSiteRules()]).then(([s, settings, rules]) => {
+  Promise.all([loadStateFromStorage(), loadSettings(), loadSiteRules()]).then(([s, settings, rules]) => {
       const normalizedState = normalizeLoadedState(s)
       if (settings) {
         // Merge loaded settings into state
@@ -75,6 +77,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         normalizedState.highlightInCoverLetter = settings.highlightInCoverLetter
         normalizedState.autoAnalyze = settings.autoAnalyze
         normalizedState.debugMode = settings.debugMode
+        normalizedState.forceUniqueColors = settings.forceUniqueColors ?? normalizedState.forceUniqueColors
       }
       if (rules) {
         normalizedState.siteRules = rules
@@ -96,6 +99,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       highlightInCoverLetter: state.highlightInCoverLetter,
       autoAnalyze: state.autoAnalyze,
       debugMode: state.debugMode,
+      forceUniqueColors: state.forceUniqueColors,
     }
     const t = setTimeout(() => { saveSettings(settings) }, 300)
     return () => clearTimeout(t)
@@ -112,9 +116,16 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const addParagraph = useCallback(() => {
     setState(prev => ({
       ...prev,
-      // New paragraphs should be expanded by default so users can edit immediately
-      paragraphs: [...prev.paragraphs, { id: uuid(), html: '<p></p>', keywords: [], noLineBreak: false, autoInclude: false, included: false, collapsed: false }]
+      paragraphs: [...prev.paragraphs, { id: uuid(), html: '<p></p>', keywords: [], noLineBreak: false, autoInclude: false, included: false, collapsed: false, color: undefined }]
     }))
+  }, [])
+
+  const addParagraphAt = useCallback((index: number) => {
+    setState(prev => {
+      const next = cloneState(prev)
+      next.paragraphs.splice(index, 0, { id: uuid(), html: '<p></p>', keywords: [], noLineBreak: false, autoInclude: false, included: false, collapsed: false, color: undefined })
+      return next
+    })
   }, [])
 
   const updateParagraph = useCallback((paragraphId: string, patch: Partial<Paragraph> | ((prev: Paragraph) => Partial<Paragraph>)) => {
@@ -136,14 +147,88 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const addKeyword = useCallback((paragraphId: string, keyword: string) => {
-    updateParagraph(paragraphId, (prev: Paragraph) => {
-      const existingTexts = new Set(prev.keywords.map(k => k.text))
-      if (existingTexts.has(keyword)) return {}
-      return {
-        keywords: [...prev.keywords, { text: keyword, matchWholeWord: false, matchCase: false }]
+    setState(prev => {
+      const next = cloneState(prev)
+      const p = next.paragraphs.find(p => p.id === paragraphId)
+      if (!p) return prev
+      
+      const existingTexts = new Set(p.keywords.map(k => k.text))
+      if (existingTexts.has(keyword)) return prev
+      
+      p.keywords = [...p.keywords, { text: keyword, matchWholeWord: false, matchCase: false }]
+      
+      // Auto-assign a color if none set and this is the first keyword
+      if (!p.color && p.keywords.length === 1) {
+        const nextIdx = getNextAvailableColorIndex(next.paragraphs, next.darkMode)
+        p.color = hslForIndex(nextIdx, next.darkMode)
       }
+      
+      return next
     })
-  }, [updateParagraph])
+  }, [])
+  const moveKeyword = useCallback((paragraphId: string, fromIndex: number, toIndex: number) => {
+    setState(prev => {
+      const next = cloneState(prev)
+      const p = next.paragraphs.find(p => p.id === paragraphId)
+      if (!p) return prev
+      if (fromIndex < 0 || fromIndex >= p.keywords.length || toIndex < 0 || toIndex >= p.keywords.length) return prev
+      const [moved] = p.keywords.splice(fromIndex, 1)
+      p.keywords.splice(toIndex, 0, moved)
+      return next
+    })
+  }, [])
+
+  const transferKeyword = useCallback((fromParagraphId: string, fromIndex: number, toParagraphId: string, toIndex?: number) => {
+    setState(prev => {
+      if (fromParagraphId === toParagraphId) return prev
+      const next = cloneState(prev)
+      const fromP = next.paragraphs.find(p => p.id === fromParagraphId)
+      const toP = next.paragraphs.find(p => p.id === toParagraphId)
+      if (!fromP || !toP) return prev
+      if (fromIndex < 0 || fromIndex >= fromP.keywords.length) return prev
+      const [moved] = fromP.keywords.splice(fromIndex, 1)
+      const insertIdx = typeof toIndex === 'number' && toIndex >= 0 && toIndex <= toP.keywords.length ? toIndex : toP.keywords.length
+      // Prevent duplicates in target paragraph
+      if (!toP.keywords.some(k => k.text === moved.text)) {
+        toP.keywords.splice(insertIdx, 0, moved)
+      }
+      // Auto-assign color for target if needed
+      if (!toP.color && toP.keywords.length === 1) {
+        const nextIdx = getNextAvailableColorIndex(next.paragraphs, next.darkMode)
+        toP.color = hslForIndex(nextIdx, next.darkMode)
+      }
+      return next
+    })
+  }, [])
+
+  const setParagraphColor = useCallback((paragraphId: string, color?: string) => {
+    setState(prev => {
+      const next = cloneState(prev)
+      const target = next.paragraphs.find(p => p.id === paragraphId)
+      if (!target) return prev
+      if (!color) { target.color = undefined; }
+      else if (next.forceUniqueColors) {
+        const other = next.paragraphs.find(p => p.id !== paragraphId && p.color === color)
+        if (other) {
+          // Swap colors
+          const temp = other.color
+          other.color = target.color
+          target.color = temp || color
+        } else {
+          target.color = color
+        }
+      } else {
+        target.color = color
+      }
+      // Regenerate cover letter to reflect color changes
+      next.coverLetterHTML = generateCoverLetterHTML(next.paragraphs, next.highlightInCoverLetter, next.darkMode)
+      return next
+    })
+  }, [])
+
+  const toggleForceUniqueColors = useCallback(() => {
+    setState(prev => ({ ...prev, forceUniqueColors: !prev.forceUniqueColors }))
+  }, [])
 
   const updateKeyword = useCallback((paragraphId: string, oldText: string, updates: Partial<KeywordWithOptions>) => {
     setState(prev => {
@@ -195,7 +280,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       // Build keyword color map - only include matched keywords
       const keywordColorMap: Record<string, string> = {}
       state.paragraphs.forEach((p, idx) => {
-        const color = hslForIndex(idx, state.darkMode)
+        const color = p.color || hslForIndex(idx, state.darkMode)
         // Only include keywords that actually matched
         const matchedKeywords = p.lastMatchedKeywords || []
         p.keywords.forEach(kw => {
@@ -244,7 +329,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           // Build keyword color map with the UPDATED paragraphs
           const keywordColorMap: Record<string, string> = {}
           next.paragraphs.forEach((p, idx) => {
-            const color = hslForIndex(idx, next.darkMode)
+            const color = p.color || hslForIndex(idx, next.darkMode)
             const matchedKeywords = p.lastMatchedKeywords || []
             p.keywords.forEach(kw => {
               if (matchedKeywords.includes(kw.text)) {
@@ -454,11 +539,15 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     state,
     actions: {
       addParagraph,
+      addParagraphAt,
       updateParagraph,
       deleteParagraph,
       addKeyword,
       updateKeyword,
       removeKeyword,
+      moveKeyword,
+      transferKeyword,
+      setParagraphColor,
       reorderParagraphs,
       setJobPostingRaw,
       analyzeNow,
@@ -472,6 +561,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       toggleHighlightInCoverLetter,
       toggleAutoAnalyze,
       toggleDebugMode,
+      toggleForceUniqueColors,
       highlightPageKeywords,
       debugPageState,
       addSiteRule,
@@ -480,7 +570,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       loadSiteRulesFromFile,
       saveSiteRulesToFile,
     }
-  }), [state, addParagraph, updateParagraph, deleteParagraph, addKeyword, updateKeyword, removeKeyword, reorderParagraphs, setJobPostingRaw, analyzeNow, generateCoverLetter, saveToFile, loadFromFile, pasteFromClipboard, analyzeCurrentPage, toggleDarkMode, toggleHighlightInCoverLetter, toggleAutoAnalyze, toggleDebugMode, highlightPageKeywords, debugPageState, addSiteRule, updateSiteRule, removeSiteRule, loadSiteRulesFromFile, saveSiteRulesToFile])
+  }), [state, addParagraph, addParagraphAt, updateParagraph, deleteParagraph, addKeyword, updateKeyword, removeKeyword, moveKeyword, transferKeyword, setParagraphColor, reorderParagraphs, setJobPostingRaw, analyzeNow, generateCoverLetter, saveToFile, loadFromFile, pasteFromClipboard, analyzeCurrentPage, toggleDarkMode, toggleHighlightInCoverLetter, toggleAutoAnalyze, toggleDebugMode, toggleForceUniqueColors, highlightPageKeywords, debugPageState, addSiteRule, updateSiteRule, removeSiteRule, loadSiteRulesFromFile, saveSiteRulesToFile])
 
   return (
     <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>

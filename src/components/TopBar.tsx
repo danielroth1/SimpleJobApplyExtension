@@ -62,6 +62,10 @@ export default function TopBar() {
               <input type="checkbox" checked={state.autoAnalyze} onChange={() => {}} />
               <span>Auto-analyze pages</span>
             </div>
+            <div className="settings-menu-item" title="Force paragraphs to keep unique colors; selecting a taken color swaps." onClick={actions.toggleForceUniqueColors}>
+              <input type="checkbox" checked={state.forceUniqueColors} onChange={() => {}} />
+              <span>Unique paragraph colors</span>
+            </div>
             <div className="settings-menu-divider" />
             <div className="settings-menu-item" onClick={() => { actions.saveToFile(); setShowSettings(false); }}>
               <span>💾</span>

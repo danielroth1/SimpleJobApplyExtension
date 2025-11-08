@@ -8,6 +8,7 @@ export type AppSettings = {
   highlightInCoverLetter: boolean
   autoAnalyze: boolean
   debugMode: boolean
+  forceUniqueColors: boolean
 }
 
 function getStorageApi(): any | null {

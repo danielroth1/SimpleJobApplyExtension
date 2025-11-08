@@ -7,7 +7,18 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  const isFirefox = mode === 'firefox' || process.env.FIREFOX === '1' || process.env.BROWSER === 'firefox'
+  // Reliable browser target detection for manifest copying.
+  // Preferred: pass `--mode firefox` for Firefox builds.
+  // Fallbacks: set EXT_BROWSER=firefox or BROWSER/TARGET=firefox or FIREFOX=1.
+  const browserEnv = (process.env.EXT_BROWSER || process.env.BROWSER || process.env.TARGET || '').toLowerCase()
+  const isFirefox = (
+    mode === 'firefox' || // explicit --mode firefox
+    process.env.FIREFOX === '1' || // explicit env flag FIREFOX=1
+    browserEnv === 'firefox'
+  )
+  console.log(`Building for ${isFirefox ? 'Firefox' : 'Chrome'} target...`)
+  console.log('EXT_BROWSER/BROWSER/TARGET:', browserEnv || '(not set)')
+  console.log('browserEnv value:', process.env.FIREFOX)
 
   return {
     plugins: [
@@ -44,6 +55,10 @@ export default defineConfig(({ mode }) => {
               console.warn('Could not copy icon.ico to dist:', e)
             }
 
+            // Helpful diagnostics when building under watch or CI
+            console.log('[build] mode:', mode)
+            console.log('[build] ENV EXT_BROWSER/BROWSER/TARGET:', browserEnv || '(not set)')
+            console.log('[build] Resolved target:', isFirefox ? 'firefox' : 'chrome')
             if (isFirefox) {
               console.log(`✓ Copied Firefox MV2 manifest with version ${version}`)
             } else {

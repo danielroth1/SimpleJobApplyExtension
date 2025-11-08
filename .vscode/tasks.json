@@ -58,6 +58,28 @@
       }
     },
     {
+      "label": "vite:watch:firefox",
+      "type": "shell",
+      "command": "npx",
+      "args": ["vite", "build", "--watch", "--mode", "firefox"],
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^([^\\\\s].*)\\\\((\\\\d+|\\\\d+,\\\\d+|\\\\d+,\\\\d+,\\\\d+,\\\\d+)\\\\):\\\\s+(error|warning|info)\\\\s+(TS\\\\d+)\\\\s*:\\s*(.*)$",
+          "file": 1,
+          "location": 2,
+          "severity": 3,
+          "code": 4,
+          "message": 5
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".",
+          "endsPattern": "(watching for file changes|✓ built in)"
+        }
+      }
+    },
+    {
       "label": "web-ext:run:firefox",
       "type": "shell",
       "command": "npx",

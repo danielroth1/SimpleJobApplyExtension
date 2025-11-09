@@ -364,7 +364,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const addJob = useCallback(() => {
     const newJob: Job = {
       id: uuid(),
-      title: 'New Job',
+      title: '',
       company: '',
       location: '',
       officeLocation: 'hybrid',
@@ -375,6 +375,23 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       updatedAt: Date.now(),
     }
     setState(prev => ({ ...prev, jobs: [...prev.jobs, newJob] }))
+  }, [])
+
+  const addJobAndGetId = useCallback((): string => {
+    const newJob: Job = {
+      id: uuid(),
+      title: '',
+      company: '',
+      location: '',
+      officeLocation: 'hybrid',
+      description: '',
+      link: '',
+      status: 'open',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    }
+    setState(prev => ({ ...prev, jobs: [...prev.jobs, newJob] }))
+    return newJob.id
   }, [])
 
   const updateJob = useCallback((jobId: string, patch: Partial<Job>) => {
@@ -638,9 +655,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setParagraphColor,
       reorderParagraphs,
       addJob,
-      updateJob,
+  updateJob,
       deleteJob,
       reorderJobs,
+  addJobAndGetId,
       addPdfItem,
       updatePdfItem,
       deletePdfItem,

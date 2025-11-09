@@ -78,6 +78,7 @@ export type AppActions = {
   reorderParagraphs: (fromIndex: number, toIndex: number) => void
   // Job actions
   addJob: () => void
+  addJobAndGetId: () => string
   updateJob: (jobId: string, patch: Partial<Job>) => void
   deleteJob: (jobId: string) => void
   reorderJobs: (fromIndex: number, toIndex: number) => void

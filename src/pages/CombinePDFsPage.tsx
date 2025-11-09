@@ -108,6 +108,7 @@ export default function CombinePDFsPage() {
     closeContextMenu()
   }
 
+
   // Combine PDFs
   const combinePDFs = async () => {
     if (state.pdfItems.length === 0) {
@@ -181,8 +182,8 @@ export default function CombinePDFsPage() {
               onContextMenu={(e) => handleContextMenu(e, item.id)}
               title={item.fileName}
             >
-              <div className="pdf-preview-thumbnail">
-                <span className="pdf-icon">📄</span>
+              <div className="pdf-preview-thumbnail"> 
+                <span className="pdf-icon" style={{ opacity: 0.3 }}>📄</span>
               </div>
               <div className="pdf-preview-name">{item.fileName}</div>
             </div>

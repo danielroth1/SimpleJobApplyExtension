@@ -51,13 +51,34 @@ The build output is in `dist/`, and all extension files from `public/` are copie
 
 ## Firefox build, temporary load, and signing
 
-In VS Code, simply run
+### System requirements
+- macOS (10.15+ recommended) (Windows / Linux should also work, but I didn't test it)
+- Node.js (LTS 18+ or 20+)
+- npm (bundled with Node) or pnpm/yarn
+- web-ext CLI (Mozilla tooling)
+- Git
+
+### Recommended tools
+- VS Code
+- web-ext (npm i -g web-ext)
+- zip (macOS has it preinstalled)
+- Firefox Add-ons Developer account (for signing)
+
+Install tools
+```sh
+brew install --cask firefox-developer-edition
+brew install node
+npm install -g web-ext
 ```
+
+In VS Code, simply run
+```sh
 Dev: Firefox Extension (Watch)
 ```
 
 Or to build a Firefox artifact (zip/xpi) and overwrite any previous artifact:
 ```sh
+npm install
 npm run build:firefox
 ```
 
@@ -68,7 +89,7 @@ Temporary install in Firefox (dev/test):
 2. Click **Load Temporary Add-on…**.
 3. Select the `dist/manifest.json` file or the `.zip`/`.xpi` artifact.
 
-Signing (required for AMO publishing)
+### Signing (required for AMO publishing)
 - To sign via Mozilla (programmatic): set the following environment variables with your AMO API credentials (from your Developer Hub account):
 	- `AMO_JWT_ISSUER` (API key / issuer)
 	- `AMO_JWT_SECRET` (API secret)
@@ -84,6 +105,11 @@ npm run sign:firefox
 
 Note: `web-ext sign` requires a Mozilla Add-ons developer account and valid API credentials. The signed XPI returned from AMO can be distributed or uploaded to addons.mozilla.org.
 
+### Create packaged .zip of source code with
+```sh
+npm run package_src
+```
+adds a zip file to web-ext-articats/source_code/
 
 ## CC Attribution Icon
 Creator: IconMarket  

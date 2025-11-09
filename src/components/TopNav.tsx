@@ -7,12 +7,27 @@ interface TopNavProps {
   onNavigate: (page: string) => void
   pageTitle?: string
   showTopBarControls?: boolean
+  onBack?: () => void
+  // Job detail editing support
+  editableTitle?: boolean
+  selectedJobId?: string | null
 }
 
-export default function TopNav({ currentPage, onNavigate, pageTitle, showTopBarControls }: TopNavProps) {
-  const { actions } = useAppState()
+export default function TopNav({ currentPage, onNavigate, pageTitle, showTopBarControls, onBack, editableTitle, selectedJobId }: TopNavProps) {
+  const { state, actions } = useAppState()
   const [menuOpen, setMenuOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isEditingTitle, setIsEditingTitle] = useState(false)
+  const [titleInput, setTitleInput] = useState('')
+
+  const selectedJob = selectedJobId ? state.jobs.find(j => j.id === selectedJobId) : undefined
+  const effectiveTitle = pageTitle ?? (selectedJob ? (selectedJob.title || 'Untitled Job') : undefined)
+
+  useEffect(() => {
+    if (editableTitle && selectedJob) {
+      setTitleInput(selectedJob.title || '')
+    }
+  }, [editableTitle, selectedJobId, selectedJob?.title])
 
   const toggleMenu = () => setMenuOpen(!menuOpen)
   const closeMenu = () => setMenuOpen(false)
@@ -67,7 +82,36 @@ export default function TopNav({ currentPage, onNavigate, pageTitle, showTopBarC
         </button>
         
         {showTopBarControls && <TopBar />}
-        {pageTitle && <h2 className="page-title-header">{pageTitle}</h2>}
+        {effectiveTitle && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {onBack && (
+              <button className="btn btn-outline-secondary btn-sm" onClick={onBack} title="Back">←</button>
+            )}
+            {!editableTitle && (
+              <h2 className="page-title-header">{effectiveTitle}</h2>
+            )}
+            {editableTitle && (
+              isEditingTitle ? (
+                <input
+                  autoFocus
+                  className="form-control"
+                  style={{ maxWidth: 380, height: 30, padding: '2px 8px' }}
+                  value={titleInput}
+                  onChange={(e) => setTitleInput(e.target.value)}
+                  onBlur={() => { if (selectedJob) actions.updateJob(selectedJob.id, { title: titleInput }); setIsEditingTitle(false) }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') { if (selectedJob) actions.updateJob(selectedJob.id, { title: titleInput }); setIsEditingTitle(false) }
+                    if (e.key === 'Escape') { setIsEditingTitle(false); setTitleInput(selectedJob?.title || '') }
+                  }}
+                />
+              ) : (
+                <h2 className="page-title-header" style={{ cursor: 'text' }} onClick={() => setIsEditingTitle(true)} title="Click to edit title">
+                  {effectiveTitle}
+                </h2>
+              )
+            )}
+          </div>
+        )}
       </div>
 
       {menuOpen && <div className="burger-menu-overlay" onClick={closeMenu} />}

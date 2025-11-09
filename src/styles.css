@@ -399,12 +399,13 @@ body.dark-mode .form-control {
   background: none;
   border: none;
   cursor: pointer;
-  padding: 8px 12px;
-  font-size: 24px;
+  padding: 4px 8px;
+  font-size: 20px;
   color: var(--text);
   border-radius: 4px;
   transition: background 0.2s ease;
   flex-shrink: 0;
+  line-height: 1;
 }
 
 .burger-btn:hover {
@@ -530,6 +531,7 @@ body.dark-mode .form-control {
   padding: 24px;
   max-width: 800px;
   margin: 0 auto;
+  position: relative;
 }
 
 .jobs-header {
@@ -562,18 +564,48 @@ body.dark-mode .form-control {
 .job-preview {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  border-radius: 12px;
-  cursor: move;
-  transition: all 0.2s ease;
-  border: 2px solid transparent;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--chip-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .job-preview:hover {
-  transform: translateX(4px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  border-color: var(--border);
+  transform: translateX(3px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+  border-color: var(--accent);
+}
+
+.job-preview.dragging:hover,
+.job-preview.dialog-open:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.job-drag-handle {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  cursor: grab;
+  font-size: 16px;
+  color: var(--muted);
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.job-drag-handle:active {
+  cursor: grabbing;
+}
+
+.job-drag-handle:hover {
+  background: var(--chip-bg);
+  color: var(--text);
+  border-color: var(--accent);
 }
 
 .job-preview-content {
@@ -593,16 +625,96 @@ body.dark-mode .form-control {
   color: var(--muted);
 }
 
+.job-status-badge {
+  padding: 4px 12px;
+  border: none;
+  border-radius: 18px;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.job-status-badge:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Status menu items colored dot */
+.status-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.status-color-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,0.6);
+}
+
+/* Office menu items */
+.office-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.office-icon {
+  width: 18px;
+  text-align: center;
+}
+
+/* Modern detail buttons (office, link actions) */
+.detail-btn {
+  background: linear-gradient(135deg, rgba(241,245,249,0.8) 0%, rgba(226,232,240,0.8) 100%);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 14px;
+  font-size: 13px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  line-height: 1.2;
+}
+.detail-btn:hover {
+  background: linear-gradient(135deg, rgba(226,232,240,1) 0%, rgba(203,213,225,1) 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+  border-color: var(--muted);
+}
+body.dark-mode .detail-btn {
+  background: linear-gradient(135deg, rgba(55,65,81,0.6) 0%, rgba(31,41,55,0.6) 100%);
+  border-color: var(--border);
+  color: var(--text);
+}
+body.dark-mode .detail-btn:hover {
+  background: linear-gradient(135deg, rgba(55,65,81,0.9) 0%, rgba(31,41,55,0.9) 100%);
+  border-color: var(--muted);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.5);
+}
+
+/* Rich text editor placeholder */
+.rte:empty::before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+  pointer-events: none;
+}
+
 .job-preview-delete {
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.08);
   border: none;
   border-radius: 6px;
-  padding: 8px 12px;
+  padding: 6px 10px;
   cursor: pointer;
-  font-size: 18px;
-  transition: all 0.2s ease;
+  font-size: 16px;
+  transition: all 0.15s ease;
   flex-shrink: 0;
-  margin-left: 12px;
 }
 
 .job-preview-delete:hover {
@@ -759,16 +871,16 @@ body.dark-mode .form-control {
 .pdf-preview-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 12px;
   align-items: flex-start;
 }
 
 .pdf-preview-item {
-  width: 150px;
+  width: 130px;
   background: var(--panel-bg);
   border: 2px solid var(--border);
   border-radius: 8px;
-  padding: 12px;
+  padding: 10px;
   cursor: move;
   transition: all 0.2s ease;
   user-select: none;
@@ -790,19 +902,19 @@ body.dark-mode .form-control {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 120px;
+  height: 100px;
   background: var(--chip-bg);
   border-radius: 4px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .pdf-icon {
-  font-size: 48px;
+  font-size: 40px;
   opacity: 0.6;
 }
 
 .pdf-preview-name {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text);
   text-align: center;
   word-break: break-word;
@@ -813,8 +925,8 @@ body.dark-mode .form-control {
 }
 
 .pdf-add-button {
-  width: 150px;
-  height: 180px;
+  width: 130px;
+  height: 150px;
   background: transparent;
   border: 2px dashed var(--border);
   border-radius: 8px;
@@ -835,11 +947,11 @@ body.dark-mode .form-control {
 }
 
 .pdf-add-icon {
-  font-size: 32px;
+  font-size: 28px;
 }
 
 .pdf-add-text {
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .combine-actions {

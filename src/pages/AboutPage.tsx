@@ -23,7 +23,7 @@ export default function AboutPage() {
               <span>Personal Website</span>
             </a>
             <a href="https://daniel.mailbase.info/#/projects/simple-job-apply-extension" target="_blank" rel="noopener noreferrer" className="contact-link">
-              <span className="contact-icon">🔗</span>
+              <span className="contact-icon">🌐</span>
               <span>Project Website</span>
             </a>
             <a href="mailto:daniel@mailbase.info" className="contact-link">

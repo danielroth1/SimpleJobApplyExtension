@@ -1,0 +1,279 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { useAppState } from '@/state/AppStateContext'
+import { Job, JobStatus, OfficeLocation } from '@/state/types'
+import ModalPrompt from '@/components/ModalPrompt'
+
+const STATUS_COLORS: Record<JobStatus, string> = {
+  open: '#94a3b8',
+  applied: '#fbbf24',
+  rejected: '#ef4444',
+  interview: '#f97316',
+  accepted: '#10b981',
+}
+
+const STATUS_LABELS: Record<JobStatus, string> = {
+  open: 'Open',
+  applied: 'Applied',
+  rejected: 'Rejected',
+  interview: 'Interview',
+  accepted: 'Accepted',
+}
+
+const OFFICE_OPTIONS: { value: OfficeLocation; label: string; icon: string }[] = [
+  { value: 'on-site', label: 'On site', icon: '🏢' },
+  { value: 'hybrid', label: 'Hybrid', icon: '🔀' },
+  { value: 'home-office', label: 'Home office', icon: '🏡' },
+  { value: 'custom', label: 'Custom', icon: '✨' },
+]
+
+export default function JobDetailPage({ jobId, onBack }: { jobId: string | null; onBack: () => void }) {
+  const { state, actions } = useAppState()
+  const job = useMemo(() => state.jobs.find(j => j.id === jobId) || null, [state.jobs, jobId])
+  const [showStatusMenu, setShowStatusMenu] = useState(false)
+  const [showOfficeMenu, setShowOfficeMenu] = useState(false)
+  const [showEditLink, setShowEditLink] = useState(false)
+  const statusBtnRef = useRef<HTMLButtonElement>(null)
+  const officeBtnRef = useRef<HTMLButtonElement>(null)
+  const statusMenuRef = useRef<HTMLDivElement>(null)
+  const officeMenuRef = useRef<HTMLDivElement>(null)
+  const linkBtnRef = useRef<HTMLButtonElement | HTMLAnchorElement>(null)
+  const linkPopupRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const closeOnOutside = (e: MouseEvent) => {
+      const t = e.target as Element
+      const clickedInStatus = !!(statusBtnRef.current && statusBtnRef.current.contains(t)) || !!(statusMenuRef.current && statusMenuRef.current.contains(t))
+      const clickedInOffice = !!(officeBtnRef.current && officeBtnRef.current.contains(t)) || !!(officeMenuRef.current && officeMenuRef.current.contains(t))
+      const clickedInLink = !!(linkBtnRef.current && linkBtnRef.current.contains(t)) || !!(linkPopupRef.current && linkPopupRef.current.contains(t))
+      if (!clickedInStatus) setShowStatusMenu(false)
+      if (!clickedInOffice) setShowOfficeMenu(false)
+      if (!clickedInLink) setShowEditLink(false)
+    }
+    document.addEventListener('mousedown', closeOnOutside)
+    return () => document.removeEventListener('mousedown', closeOnOutside)
+  }, [])
+
+  if (!job) {
+    return (
+      <div className="jobs-page">
+        <h3 style={{ margin: 0, marginBottom: 12 }}>Job not found</h3>
+        <p>It looks like this job was removed.</p>
+      </div>
+    )
+  }
+
+  const update = (patch: Partial<Job>) => actions.updateJob(job.id, { ...patch, updatedAt: Date.now() })
+
+  return (
+    <div className="jobs-page">
+
+      {/* Company */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <span title="Company">🏢</span>
+        <input
+          className="form-control"
+          value={job.company}
+          placeholder="Company"
+          onChange={(e) => update({ company: e.target.value })}
+        />
+      </div>
+
+      {/* Location */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+        <span title="Location">📍</span>
+        <input
+          className="form-control"
+          value={job.location}
+          placeholder="City, Country"
+          onChange={(e) => update({ location: e.target.value })}
+        />
+      </div>
+
+      {/* Office location */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        <button
+          ref={officeBtnRef}
+          className="detail-btn"
+          onClick={() => setShowOfficeMenu(v => !v)}
+          title="Select office location"
+        >
+          <span style={{ marginRight: 4 }}>🧭</span>
+          {OFFICE_OPTIONS.find(o => o.value === job.officeLocation)?.label || 'Office location'} ▾
+        </button>
+        {job.officeLocation === 'custom' && (
+          <input
+            className="form-control"
+            style={{ maxWidth: 300 }}
+            placeholder="Custom office location"
+            value={job.officeLocationCustom || ''}
+            onChange={(e) => update({ officeLocationCustom: e.target.value })}
+          />
+        )}
+        {showOfficeMenu && officeBtnRef.current && (
+          <div
+            ref={officeMenuRef}
+            style={{
+              position: 'fixed',
+              top: officeBtnRef.current.getBoundingClientRect().bottom + 6,
+              left: officeBtnRef.current.getBoundingClientRect().left,
+              background: 'var(--panel-bg)',
+              border: '1px solid var(--border)',
+              borderRadius: 8,
+              padding: 8,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              zIndex: 1000,
+              minWidth: 200,
+            }}
+          >
+            {OFFICE_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                className="context-menu-item office-menu-item"
+                onClick={() => { update({ officeLocation: opt.value }); setShowOfficeMenu(false) }}
+              >
+                <span className="office-icon" style={{ fontSize: 16 }}>{opt.icon}</span>
+                <span>{opt.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Link */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        {job.link ? (
+          <>
+            <a
+              ref={linkBtnRef as any}
+              className="detail-btn"
+              href={job.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Open link"
+            >
+              🌐 Open Link
+            </a>
+            <button ref={linkBtnRef as any} className="detail-btn" onClick={() => setShowEditLink(true)} title="Edit link">✏️ Edit</button>
+          </>
+        ) : (
+          <button ref={linkBtnRef as any} className="detail-btn" onClick={() => setShowEditLink(true)} title="Add link">➕ Add Link</button>
+        )}
+        {showEditLink && linkBtnRef.current && (() => {
+          const rect = linkBtnRef.current.getBoundingClientRect()
+          let left = rect.left
+          let top = rect.bottom + 6
+          const popupW = 320
+          const popupH = 120
+          if (left + popupW > window.innerWidth - 8) left = Math.max(8, window.innerWidth - popupW - 8)
+          if (top + popupH > window.innerHeight - 8) top = Math.max(8, rect.top - popupH - 6)
+          let temp = job.link || ''
+          return (
+            <div
+              ref={linkPopupRef}
+              style={{
+                position: 'fixed',
+                top,
+                left,
+                background: 'var(--panel-bg)',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                padding: 10,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                zIndex: 1000,
+                minWidth: popupW,
+              }}
+            >
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  defaultValue={job.link}
+                  placeholder="https://..."
+                  className="form-control"
+                  style={{ flex: 1 }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const val = (e.currentTarget as HTMLInputElement).value
+                      update({ link: val }); setShowEditLink(false)
+                    } else if (e.key === 'Escape') {
+                      setShowEditLink(false)
+                    }
+                  }}
+                />
+                <button className="btn btn-primary btn-sm" onClick={() => {
+                  const input = (linkPopupRef.current?.querySelector('input') as HTMLInputElement)
+                  const val = input?.value || ''
+                  update({ link: val }); setShowEditLink(false)
+                }}>Save</button>
+                <button className="btn btn-outline-secondary btn-sm" onClick={() => setShowEditLink(false)}>Cancel</button>
+              </div>
+            </div>
+          )
+        })()}
+      </div>
+
+      {/* Status */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+        <button
+          ref={statusBtnRef}
+          className="job-status-badge"
+          style={{ backgroundColor: STATUS_COLORS[job.status] }}
+          onClick={() => setShowStatusMenu(v => !v)}
+          title="Change status"
+        >
+          {STATUS_LABELS[job.status]} ▾
+        </button>
+        {showStatusMenu && statusBtnRef.current && (
+          <div
+            ref={statusMenuRef}
+            style={{
+              position: 'fixed',
+              top: statusBtnRef.current.getBoundingClientRect().bottom + 6,
+              left: statusBtnRef.current.getBoundingClientRect().left,
+              background: 'var(--panel-bg)',
+              border: '1px solid var(--border)',
+              borderRadius: 8,
+              padding: 8,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              zIndex: 1000,
+              minWidth: 200,
+            }}
+          >
+            {Object.keys(STATUS_LABELS).map((k) => {
+              const s = k as JobStatus
+              return (
+                <button
+                  key={s}
+                  className="context-menu-item status-menu-item"
+                  onClick={() => { update({ status: s }); setShowStatusMenu(false) }}
+                >
+                  <span className="status-color-dot" style={{ background: STATUS_COLORS[s] }} />
+                  <span>{STATUS_LABELS[s]}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Description */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div
+          className="rte"
+          contentEditable
+          suppressContentEditableWarning
+          style={{ minHeight: 160 }}
+          data-placeholder="Job description / notes..."
+          dangerouslySetInnerHTML={{ __html: job.description || '' }}
+          onPaste={(e) => {
+            e.preventDefault()
+            const text = e.clipboardData.getData('text/plain')
+            document.execCommand('insertText', false, text)
+          }}
+          onBlur={(e) => {
+            const html = e.currentTarget.innerHTML
+            if (html !== job.description) update({ description: html })
+          }}
+        />
+      </div>
+    </div>
+  )
+}

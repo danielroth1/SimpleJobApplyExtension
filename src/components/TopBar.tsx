@@ -4,7 +4,6 @@ import SiteRulesEditor from './SiteRulesEditor'
 
 export default function TopBar() {
   const { state, actions } = useAppState()
-  const fileRef = useRef<HTMLInputElement>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [showSiteRules, setShowSiteRules] = useState(false)
   const settingsRef = useRef<HTMLDivElement>(null)
@@ -24,7 +23,7 @@ export default function TopBar() {
   }, [showSettings])
 
   return (
-    <div className="topbar">
+    <div className="topbar-controls">
       <button className="btn btn-primary btn-sm" onClick={actions.analyzeNow} title="Analyze the job posting and match keywords with your paragraphs">
         🔍 Analyze
       </button>
@@ -67,15 +66,6 @@ export default function TopBar() {
               <span>Unique paragraph colors</span>
             </div>
             <div className="settings-menu-divider" />
-            <div className="settings-menu-item" onClick={() => { actions.saveToFile(); setShowSettings(false); }}>
-              <span>💾</span>
-              <span>Save</span>
-            </div>
-            <div className="settings-menu-item" onClick={() => { fileRef.current?.click(); setShowSettings(false); }}>
-              <span>📂</span>
-              <span>Load</span>
-            </div>
-            <div className="settings-menu-divider" />
             <div className="settings-menu-item" onClick={() => { setShowSiteRules(true); setShowSettings(false); }}>
               <span>🌐</span>
               <span>Site Rules</span>
@@ -96,11 +86,6 @@ export default function TopBar() {
           </div>
         )}
       </div>
-      <input className="hidden" type="file" accept="application/json" ref={fileRef} onChange={(e)=>{
-        const f = e.target.files?.[0]
-        if (f) actions.loadFromFile(f)
-        e.currentTarget.value = ''
-      }} />
       
       {showSiteRules && <SiteRulesEditor onClose={() => setShowSiteRules(false)} />}
     </div>

@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { AppActions, AppState, Paragraph, KeywordWithOptions, SiteRule } from './types'
+import { AppActions, AppState, Paragraph, KeywordWithOptions, SiteRule, Job, PDFItem } from './types'
 import { cloneState, generateCoverLetterHTML, highlightJobPosting, hslForIndex, getNextAvailableColorIndex } from './logic'
 import { loadStateFromStorage, saveStateToStorage, downloadJson, readJsonFile, getPageText, getPageHtml, downloadFile, readClipboardText, saveSettings, loadSettings, type AppSettings, saveSiteRules, loadSiteRules } from '@/utils/storage'
 
@@ -19,6 +19,8 @@ const defaultState: AppState = {
   paragraphs: [
     { id: uuid(), html: '<p>Dear Hiring Manager,</p>', keywords: [], noLineBreak: false, autoInclude: false, included: false, collapsed: true, color: undefined }
   ],
+  jobs: [],
+  pdfItems: [],
   jobPostingRaw: '',
   jobPostingHTML: '',
   coverLetterHTML: '<p></p>',
@@ -51,6 +53,8 @@ function normalizeLoadedState(s: Partial<AppState> | null): AppState {
     : defaultState.paragraphs
   return {
     paragraphs,
+    jobs: Array.isArray(s.jobs) ? s.jobs : defaultState.jobs,
+    pdfItems: Array.isArray(s.pdfItems) ? s.pdfItems : defaultState.pdfItems,
     jobPostingRaw: s.jobPostingRaw ?? defaultState.jobPostingRaw,
     jobPostingHTML: s.jobPostingHTML ?? defaultState.jobPostingHTML,
     coverLetterHTML: s.coverLetterHTML ?? defaultState.coverLetterHTML,
@@ -356,10 +360,92 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     setState(prev => ({ ...prev, coverLetterHTML: generateCoverLetterHTML(prev.paragraphs, prev.highlightInCoverLetter, prev.darkMode) }))
   }, [])
 
+  // Job actions
+  const addJob = useCallback(() => {
+    const newJob: Job = {
+      id: uuid(),
+      title: 'New Job',
+      company: '',
+      location: '',
+      officeLocation: 'hybrid',
+      description: '',
+      link: '',
+      status: 'open',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    }
+    setState(prev => ({ ...prev, jobs: [...prev.jobs, newJob] }))
+  }, [])
+
+  const updateJob = useCallback((jobId: string, patch: Partial<Job>) => {
+    setState(prev => {
+      const next = cloneState(prev)
+      const job = next.jobs.find(j => j.id === jobId)
+      if (!job) return prev
+      Object.assign(job, patch, { updatedAt: Date.now() })
+      return next
+    })
+  }, [])
+
+  const deleteJob = useCallback((jobId: string) => {
+    setState(prev => ({
+      ...prev,
+      jobs: prev.jobs.filter(j => j.id !== jobId)
+    }))
+  }, [])
+
+  const reorderJobs = useCallback((fromIndex: number, toIndex: number) => {
+    setState(prev => {
+      const next = cloneState(prev)
+      const [moved] = next.jobs.splice(fromIndex, 1)
+      next.jobs.splice(toIndex, 0, moved)
+      return next
+    })
+  }, [])
+
+  // PDF actions
+  const addPdfItem = useCallback((fileName: string, dataUrl: string) => {
+    const newPdf: PDFItem = {
+      id: uuid(),
+      fileName,
+      dataUrl,
+    }
+    setState(prev => ({ ...prev, pdfItems: [...prev.pdfItems, newPdf] }))
+  }, [])
+
+  const updatePdfItem = useCallback((pdfId: string, fileName: string, dataUrl: string) => {
+    setState(prev => {
+      const next = cloneState(prev)
+      const pdf = next.pdfItems.find(p => p.id === pdfId)
+      if (!pdf) return prev
+      pdf.fileName = fileName
+      pdf.dataUrl = dataUrl
+      return next
+    })
+  }, [])
+
+  const deletePdfItem = useCallback((pdfId: string) => {
+    setState(prev => ({
+      ...prev,
+      pdfItems: prev.pdfItems.filter(p => p.id !== pdfId)
+    }))
+  }, [])
+
+  const reorderPdfItems = useCallback((fromIndex: number, toIndex: number) => {
+    setState(prev => {
+      const next = cloneState(prev)
+      const [moved] = next.pdfItems.splice(fromIndex, 1)
+      next.pdfItems.splice(toIndex, 0, moved)
+      return next
+    })
+  }, [])
+
   const saveToFile = useCallback(async () => { 
-    // Only save content, not settings
+    // Save all content including jobs and PDFs
     const dataToSave = {
       paragraphs: state.paragraphs,
+      jobs: state.jobs,
+      pdfItems: state.pdfItems,
       jobPostingRaw: state.jobPostingRaw,
       jobPostingHTML: state.jobPostingHTML,
       coverLetterHTML: state.coverLetterHTML,
@@ -371,10 +457,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const loadFromFile = useCallback(async (file: File) => {
     const data = await readJsonFile(file)
     if (data) {
-      // Preserve current settings, only load content
+      // Preserve current settings, load content including jobs and PDFs
       setState(prev => ({
         ...prev,
         paragraphs: data.paragraphs ?? prev.paragraphs,
+        jobs: data.jobs ?? prev.jobs,
+        pdfItems: data.pdfItems ?? prev.pdfItems,
         jobPostingRaw: data.jobPostingRaw ?? prev.jobPostingRaw,
         jobPostingHTML: data.jobPostingHTML ?? prev.jobPostingHTML,
         coverLetterHTML: data.coverLetterHTML ?? prev.coverLetterHTML,
@@ -549,6 +637,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       transferKeyword,
       setParagraphColor,
       reorderParagraphs,
+      addJob,
+      updateJob,
+      deleteJob,
+      reorderJobs,
+      addPdfItem,
+      updatePdfItem,
+      deletePdfItem,
+      reorderPdfItems,
       setJobPostingRaw,
       analyzeNow,
       generateCoverLetter,
@@ -570,7 +666,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       loadSiteRulesFromFile,
       saveSiteRulesToFile,
     }
-  }), [state, addParagraph, addParagraphAt, updateParagraph, deleteParagraph, addKeyword, updateKeyword, removeKeyword, moveKeyword, transferKeyword, setParagraphColor, reorderParagraphs, setJobPostingRaw, analyzeNow, generateCoverLetter, saveToFile, loadFromFile, pasteFromClipboard, analyzeCurrentPage, toggleDarkMode, toggleHighlightInCoverLetter, toggleAutoAnalyze, toggleDebugMode, toggleForceUniqueColors, highlightPageKeywords, debugPageState, addSiteRule, updateSiteRule, removeSiteRule, loadSiteRulesFromFile, saveSiteRulesToFile])
+  }), [state, addParagraph, addParagraphAt, updateParagraph, deleteParagraph, addKeyword, updateKeyword, removeKeyword, moveKeyword, transferKeyword, setParagraphColor, reorderParagraphs, addJob, updateJob, deleteJob, reorderJobs, addPdfItem, updatePdfItem, deletePdfItem, reorderPdfItems, setJobPostingRaw, analyzeNow, generateCoverLetter, saveToFile, loadFromFile, pasteFromClipboard, analyzeCurrentPage, toggleDarkMode, toggleHighlightInCoverLetter, toggleAutoAnalyze, toggleDebugMode, toggleForceUniqueColors, highlightPageKeywords, debugPageState, addSiteRule, updateSiteRule, removeSiteRule, loadSiteRulesFromFile, saveSiteRulesToFile])
 
   return (
     <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>

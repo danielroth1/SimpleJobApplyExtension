@@ -382,27 +382,16 @@ body.dark-mode .form-control {
 .small { color: var(--muted); font-size: 12px; }
 .hidden { display: none !important; }
 
-/* App container with burger menu */
-.app-container {
+/* Top navigation bar */
+.top-nav {
   display: flex;
-  min-height: 100vh;
-}
-
-.page-content {
-  flex: 1;
-  overflow: auto;
-}
-
-/* Burger menu */
-.burger-menu-container {
-  position: relative;
-  width: 50px;
-  background: var(--panel-bg);
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
   align-items: center;
-  padding-top: 8px;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  position: sticky;
+  top: 0;
   z-index: 100;
 }
 
@@ -410,11 +399,12 @@ body.dark-mode .form-control {
   background: none;
   border: none;
   cursor: pointer;
-  padding: 8px;
+  padding: 8px 12px;
   font-size: 24px;
   color: var(--text);
   border-radius: 4px;
   transition: background 0.2s ease;
+  flex-shrink: 0;
 }
 
 .burger-btn:hover {
@@ -425,37 +415,89 @@ body.dark-mode .form-control {
   display: block;
 }
 
-.burger-menu {
-  position: absolute;
-  top: 50px;
+.page-title-header {
+  margin: 0;
+  font-size: 20px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.topbar-controls {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  align-items: center;
+}
+
+/* Burger menu sidebar */
+.burger-menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 200;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.burger-menu-sidebar {
+  position: fixed;
+  top: 0;
   left: 0;
+  bottom: 0;
+  width: 280px;
   background: var(--panel-bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  min-width: 200px;
+  border-right: 1px solid var(--border);
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.1);
+  z-index: 300;
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+  overflow-y: auto;
+}
+
+.burger-menu-sidebar.open {
+  transform: translateX(0);
+}
+
+.burger-menu-header {
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.burger-menu-header h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.burger-menu-section {
   padding: 8px;
-  z-index: 1000;
 }
 
 .burger-menu-item {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 12px;
+  padding: 12px 16px;
   background: none;
   border: none;
   width: 100%;
   text-align: left;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: 8px;
   color: var(--text);
-  font-size: 14px;
-  transition: background 0.2s ease;
+  font-size: 15px;
+  transition: all 0.2s ease;
+  font-weight: 500;
 }
 
 .burger-menu-item:hover {
   background: var(--chip-bg);
+  transform: translateX(4px);
 }
 
 .burger-menu-item.active {
@@ -464,17 +506,127 @@ body.dark-mode .form-control {
 }
 
 .burger-menu-icon {
-  font-size: 18px;
+  font-size: 20px;
   width: 24px;
   text-align: center;
+  flex-shrink: 0;
 }
 
 .burger-menu-divider {
   height: 1px;
   background: var(--border);
-  margin: 4px 0;
+  margin: 8px 12px;
 }
 
+/* Page content */
+.page-content {
+  flex: 1;
+  overflow: auto;
+  padding-bottom: 20px;
+}
+
+/* Jobs page */
+.jobs-page {
+  padding: 24px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.jobs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.jobs-header h2 {
+  margin: 0;
+  color: var(--text);
+}
+
+.jobs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.jobs-empty {
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--muted);
+  background: var(--chip-bg);
+  border-radius: 12px;
+  border: 2px dashed var(--border);
+}
+
+.job-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-radius: 12px;
+  cursor: move;
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+}
+
+.job-preview:hover {
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: var(--border);
+}
+
+.job-preview-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.job-preview-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.job-preview-company {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.job-preview-delete {
+  background: rgba(0, 0, 0, 0.1);
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 18px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+
+.job-preview-delete:hover {
+  background: #ef4444;
+  transform: scale(1.1);
+}
+
+/* About page improvements */
+.contact-icon-svg {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+/* Combine PDFs page title removed (now in top nav) */
+.combine-pdfs-page .page-title {
+  display: none;
+}
+
+.combine-pdfs-page {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
 /* About page */
 .about-page {
   padding: 24px;
@@ -565,18 +717,7 @@ body.dark-mode .form-control {
   text-decoration: underline;
 }
 
-/* Combine PDFs page */
-.combine-pdfs-page {
-  padding: 24px;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.page-title {
-  color: var(--text);
-  margin-bottom: 24px;
-}
-
+/* PDF styles */
 .pdf-drop-zone {
   border: 2px dashed var(--border);
   border-radius: 12px;

@@ -17,6 +17,30 @@ export type Paragraph = {
   lastMatchedKeywords?: string[]
 }
 
+export type JobStatus = 'open' | 'applied' | 'rejected' | 'interview' | 'accepted'
+
+export type OfficeLocation = 'hybrid' | 'on-site' | 'home-office' | 'custom'
+
+export type Job = {
+  id: string
+  title: string
+  company: string
+  location: string
+  officeLocation: OfficeLocation
+  officeLocationCustom?: string
+  description: string
+  link: string
+  status: JobStatus
+  createdAt: number
+  updatedAt: number
+}
+
+export type PDFItem = {
+  id: string
+  fileName: string
+  dataUrl: string // Base64 encoded PDF for persistence
+}
+
 export type SiteRule = {
   domain: string
   selector: string
@@ -25,6 +49,8 @@ export type SiteRule = {
 
 export type AppState = {
   paragraphs: Paragraph[]
+  jobs: Job[]
+  pdfItems: PDFItem[]
   jobPostingRaw: string
   jobPostingHTML: string
   coverLetterHTML: string
@@ -50,6 +76,17 @@ export type AppActions = {
   transferKeyword: (fromParagraphId: string, fromIndex: number, toParagraphId: string, toIndex?: number) => void
   setParagraphColor: (paragraphId: string, color?: string) => void
   reorderParagraphs: (fromIndex: number, toIndex: number) => void
+  // Job actions
+  addJob: () => void
+  updateJob: (jobId: string, patch: Partial<Job>) => void
+  deleteJob: (jobId: string) => void
+  reorderJobs: (fromIndex: number, toIndex: number) => void
+  // PDF actions
+  addPdfItem: (fileName: string, dataUrl: string) => void
+  updatePdfItem: (pdfId: string, fileName: string, dataUrl: string) => void
+  deletePdfItem: (pdfId: string) => void
+  reorderPdfItems: (fromIndex: number, toIndex: number) => void
+  // Other actions
   setJobPostingRaw: (raw: string) => void
   analyzeNow: () => void
   generateCoverLetter: () => void
@@ -71,3 +108,4 @@ export type AppActions = {
   loadSiteRulesFromFile: (file: File) => Promise<void>
   saveSiteRulesToFile: () => Promise<void>
 }
+

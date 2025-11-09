@@ -1,32 +1,14 @@
 import React, { useState, useRef } from 'react'
 import { PDFDocument } from 'pdf-lib'
-
-interface PDFItem {
-  id: string
-  file: File
-  previewUrl: string
-}
+import { useAppState } from '../state/AppStateContext'
 
 export default function CombinePDFsPage() {
-  const [pdfItems, setPdfItems] = useState<PDFItem[]>([])
+  const { state, actions } = useAppState()
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; pdfId: string } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const replaceInputRef = useRef<HTMLInputElement>(null)
   const [replacingPdfId, setReplacingPdfId] = useState<string | null>(null)
-
-  // Generate preview for PDF
-  const generatePreview = async (file: File): Promise<string> => {
-    return new Promise((resolve) => {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        // For now, we'll use a placeholder. In a real implementation, 
-        // you'd render the first page of the PDF to a canvas
-        resolve(e.target?.result as string)
-      }
-      reader.readAsDataURL(file)
-    })
-  }
 
   // Load PDF file
   const loadPDF = async (file: File) => {
@@ -35,14 +17,12 @@ export default function CombinePDFsPage() {
       return
     }
 
-    const previewUrl = await generatePreview(file)
-    const newItem: PDFItem = {
-      id: `${Date.now()}-${Math.random()}`,
-      file,
-      previewUrl
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string
+      actions.addPdfItem(file.name, dataUrl)
     }
-
-    setPdfItems(prev => [...prev, newItem])
+    reader.readAsDataURL(file)
   }
 
   // Handle file input
@@ -58,7 +38,18 @@ export default function CombinePDFsPage() {
   const handleReplaceFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (files && files[0] && replacingPdfId) {
-      replacePDF(replacingPdfId, files[0])
+      const file = files[0]
+      if (file.type !== 'application/pdf') {
+        alert('Please select a PDF file')
+        return
+      }
+
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result as string
+        actions.updatePdfItem(replacingPdfId, file.name, dataUrl)
+      }
+      reader.readAsDataURL(file)
     }
     e.target.value = '' // Reset input
     setReplacingPdfId(null)
@@ -98,12 +89,7 @@ export default function CombinePDFsPage() {
       return
     }
 
-    setPdfItems(prev => {
-      const newItems = [...prev]
-      const [draggedItem] = newItems.splice(dragIndex, 1)
-      newItems.splice(dropIndex, 0, draggedItem)
-      return newItems
-    })
+    actions.reorderPdfItems(dragIndex, dropIndex)
     setDragOverIndex(null)
   }
 
@@ -117,27 +103,14 @@ export default function CombinePDFsPage() {
     setContextMenu(null)
   }
 
-  const replacePDF = async (pdfId: string, newFile: File) => {
-    if (newFile.type !== 'application/pdf') {
-      alert('Please select a PDF file')
-      return
-    }
-
-    const previewUrl = await generatePreview(newFile)
-    setPdfItems(prev => prev.map(item => 
-      item.id === pdfId ? { ...item, file: newFile, previewUrl } : item
-    ))
-    closeContextMenu()
-  }
-
   const deletePDF = (pdfId: string) => {
-    setPdfItems(prev => prev.filter(item => item.id !== pdfId))
+    actions.deletePdfItem(pdfId)
     closeContextMenu()
   }
 
   // Combine PDFs
   const combinePDFs = async () => {
-    if (pdfItems.length === 0) {
+    if (state.pdfItems.length === 0) {
       alert('Please add at least one PDF')
       return
     }
@@ -145,8 +118,10 @@ export default function CombinePDFsPage() {
     try {
       const mergedPdf = await PDFDocument.create()
 
-      for (const item of pdfItems) {
-        const arrayBuffer = await item.file.arrayBuffer()
+      for (const item of state.pdfItems) {
+        // Convert data URL to array buffer
+        const response = await fetch(item.dataUrl)
+        const arrayBuffer = await response.arrayBuffer()
         const pdf = await PDFDocument.load(arrayBuffer)
         const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices())
         copiedPages.forEach((page) => mergedPdf.addPage(page))
@@ -181,14 +156,12 @@ export default function CombinePDFsPage() {
 
   return (
     <div className="combine-pdfs-page">
-      <h2 className="page-title">Combine PDFs</h2>
-      
       <div 
         className="pdf-drop-zone"
         onDrop={handleDrop}
         onDragOver={handleDragOver}
       >
-        {pdfItems.length === 0 && (
+        {state.pdfItems.length === 0 && (
           <div className="drop-zone-placeholder">
             <span className="drop-zone-icon">📄</span>
             <p>Drag and drop PDF files here</p>
@@ -197,7 +170,7 @@ export default function CombinePDFsPage() {
         )}
 
         <div className="pdf-preview-list">
-          {pdfItems.map((item, index) => (
+          {state.pdfItems.map((item, index) => (
             <div
               key={item.id}
               className={`pdf-preview-item ${dragOverIndex === index ? 'drag-over' : ''}`}
@@ -206,12 +179,12 @@ export default function CombinePDFsPage() {
               onDragOver={(e) => handleItemDragOver(e, index)}
               onDrop={(e) => handleItemDrop(e, index)}
               onContextMenu={(e) => handleContextMenu(e, item.id)}
-              title={item.file.name}
+              title={item.fileName}
             >
               <div className="pdf-preview-thumbnail">
                 <span className="pdf-icon">📄</span>
               </div>
-              <div className="pdf-preview-name">{item.file.name}</div>
+              <div className="pdf-preview-name">{item.fileName}</div>
             </div>
           ))}
 
@@ -230,7 +203,7 @@ export default function CombinePDFsPage() {
         <button
           className="btn btn-primary combine-btn"
           onClick={combinePDFs}
-          disabled={pdfItems.length === 0}
+          disabled={state.pdfItems.length === 0}
           title="Combine all PDFs into a single file"
         >
           <span className="combine-icon">🔗</span>

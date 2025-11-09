@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react'
 import ParagraphGroups from '../components/ParagraphGroups'
 import JobPostingEditor from '../components/JobPostingEditor'
 import CoverLetterEditor from '../components/CoverLetterEditor'
-import TopBar from '../components/TopBar'
 import { useAppState } from '../state/AppStateContext'
 
 export default function JobAnalyzerPage() {
@@ -38,7 +37,6 @@ export default function JobAnalyzerPage() {
   
   return (
     <div className="">
-      <TopBar />
       <div className="tabs">
         <button className={activeTabs.has('paragraphs') ? 'active' : ''} onClick={() => toggleTab('paragraphs')}>Paragraphs</button>
         <button className={activeTabs.has('job') ? 'active' : ''} onClick={() => toggleTab('job')}>Job Posting</button>

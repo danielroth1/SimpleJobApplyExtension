@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useAppState } from '@/state/AppStateContext'
 import { Job, JobStatus, OfficeLocation } from '@/state/types'
 import ModalPrompt from '@/components/ModalPrompt'
+import RichTextEditor from '@/components/RichTextEditor'
 
 const STATUS_COLORS: Record<JobStatus, string> = {
   open: '#94a3b8',
@@ -89,189 +90,182 @@ export default function JobDetailPage({ jobId, onBack }: { jobId: string | null;
         />
       </div>
 
-      {/* Office location */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-        <button
-          ref={officeBtnRef}
-          className="detail-btn"
-          onClick={() => setShowOfficeMenu(v => !v)}
-          title="Select office location"
-        >
-          <span style={{ marginRight: 4 }}>🧭</span>
-          {OFFICE_OPTIONS.find(o => o.value === job.officeLocation)?.label || 'Office location'} ▾
-        </button>
-        {job.officeLocation === 'custom' && (
-          <input
-            className="form-control"
-            style={{ maxWidth: 300 }}
-            placeholder="Custom office location"
-            value={job.officeLocationCustom || ''}
-            onChange={(e) => update({ officeLocationCustom: e.target.value })}
-          />
-        )}
-        {showOfficeMenu && officeBtnRef.current && (
-          <div
-            ref={officeMenuRef}
-            style={{
-              position: 'fixed',
-              top: officeBtnRef.current.getBoundingClientRect().bottom + 6,
-              left: officeBtnRef.current.getBoundingClientRect().left,
-              background: 'var(--panel-bg)',
-              border: '1px solid var(--border)',
-              borderRadius: 8,
-              padding: 8,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-              zIndex: 1000,
-              minWidth: 200,
-            }}
+      {/* Office location, Link, and Status - in a flex row */}
+      <div className="d-flex flex-wrap gap-2 align-items-start mb-3">
+        {/* Office location */}
+        <div className="d-flex align-items-center gap-2" style={{ position: 'relative' }}>
+          <button
+            ref={officeBtnRef}
+            className="detail-btn"
+            onClick={() => setShowOfficeMenu(v => !v)}
+            title="Select office location"
           >
-            {OFFICE_OPTIONS.map(opt => (
-              <button
-                key={opt.value}
-                className="context-menu-item office-menu-item"
-                onClick={() => { update({ officeLocation: opt.value }); setShowOfficeMenu(false) }}
-              >
-                <span className="office-icon" style={{ fontSize: 16 }}>{opt.icon}</span>
-                <span>{opt.label}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Link */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-        {job.link ? (
-          <>
-            <a
-              ref={linkBtnRef as any}
-              className="detail-btn"
-              href={job.link}
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Open link"
-            >
-              🌐 Open Link
-            </a>
-            <button ref={linkBtnRef as any} className="detail-btn" onClick={() => setShowEditLink(true)} title="Edit link">✏️ Edit</button>
-          </>
-        ) : (
-          <button ref={linkBtnRef as any} className="detail-btn" onClick={() => setShowEditLink(true)} title="Add link">➕ Add Link</button>
-        )}
-        {showEditLink && linkBtnRef.current && (() => {
-          const rect = linkBtnRef.current.getBoundingClientRect()
-          let left = rect.left
-          let top = rect.bottom + 6
-          const popupW = 320
-          const popupH = 120
-          if (left + popupW > window.innerWidth - 8) left = Math.max(8, window.innerWidth - popupW - 8)
-          if (top + popupH > window.innerHeight - 8) top = Math.max(8, rect.top - popupH - 6)
-          let temp = job.link || ''
-          return (
+            <span style={{ marginRight: 4 }}>🧭</span>
+            {OFFICE_OPTIONS.find(o => o.value === job.officeLocation)?.label || 'Office location'} ▾
+          </button>
+          {job.officeLocation === 'custom' && (
+            <input
+              className="form-control"
+              style={{ maxWidth: 200 }}
+              placeholder="Custom office location"
+              value={job.officeLocationCustom || ''}
+              onChange={(e) => update({ officeLocationCustom: e.target.value })}
+            />
+          )}
+          {showOfficeMenu && officeBtnRef.current && (
             <div
-              ref={linkPopupRef}
+              ref={officeMenuRef}
               style={{
                 position: 'fixed',
-                top,
-                left,
+                top: officeBtnRef.current.getBoundingClientRect().bottom + 6,
+                left: officeBtnRef.current.getBoundingClientRect().left,
                 background: 'var(--panel-bg)',
                 border: '1px solid var(--border)',
                 borderRadius: 8,
-                padding: 10,
+                padding: 8,
                 boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                 zIndex: 1000,
-                minWidth: popupW,
+                minWidth: 200,
               }}
             >
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input
-                  defaultValue={job.link}
-                  placeholder="https://..."
-                  className="form-control"
-                  style={{ flex: 1 }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      const val = (e.currentTarget as HTMLInputElement).value
-                      update({ link: val }); setShowEditLink(false)
-                    } else if (e.key === 'Escape') {
-                      setShowEditLink(false)
-                    }
-                  }}
-                />
-                <button className="btn btn-primary btn-sm" onClick={() => {
-                  const input = (linkPopupRef.current?.querySelector('input') as HTMLInputElement)
-                  const val = input?.value || ''
-                  update({ link: val }); setShowEditLink(false)
-                }}>Save</button>
-                <button className="btn btn-outline-secondary btn-sm" onClick={() => setShowEditLink(false)}>Cancel</button>
-              </div>
-            </div>
-          )
-        })()}
-      </div>
-
-      {/* Status */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-        <button
-          ref={statusBtnRef}
-          className="job-status-badge"
-          style={{ backgroundColor: STATUS_COLORS[job.status] }}
-          onClick={() => setShowStatusMenu(v => !v)}
-          title="Change status"
-        >
-          {STATUS_LABELS[job.status]} ▾
-        </button>
-        {showStatusMenu && statusBtnRef.current && (
-          <div
-            ref={statusMenuRef}
-            style={{
-              position: 'fixed',
-              top: statusBtnRef.current.getBoundingClientRect().bottom + 6,
-              left: statusBtnRef.current.getBoundingClientRect().left,
-              background: 'var(--panel-bg)',
-              border: '1px solid var(--border)',
-              borderRadius: 8,
-              padding: 8,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-              zIndex: 1000,
-              minWidth: 200,
-            }}
-          >
-            {Object.keys(STATUS_LABELS).map((k) => {
-              const s = k as JobStatus
-              return (
+              {OFFICE_OPTIONS.map(opt => (
                 <button
-                  key={s}
-                  className="context-menu-item status-menu-item"
-                  onClick={() => { update({ status: s }); setShowStatusMenu(false) }}
+                  key={opt.value}
+                  className="context-menu-item office-menu-item"
+                  onClick={() => { update({ officeLocation: opt.value }); setShowOfficeMenu(false) }}
                 >
-                  <span className="status-color-dot" style={{ background: STATUS_COLORS[s] }} />
-                  <span>{STATUS_LABELS[s]}</span>
+                  <span className="office-icon" style={{ fontSize: 16 }}>{opt.icon}</span>
+                  <span>{opt.label}</span>
                 </button>
-              )
-            })}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Link */}
+        <div className="d-flex align-items-center gap-2">
+          {job.link ? (
+            <>
+              <a
+                ref={linkBtnRef as any}
+                className="detail-btn"
+                href={job.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open link"
+              >
+                🌐 Open Link
+              </a>
+              <button ref={linkBtnRef as any} className="detail-btn" onClick={() => setShowEditLink(true)} title="Edit link">✏️ Edit</button>
+            </>
+          ) : (
+            <button ref={linkBtnRef as any} className="detail-btn" onClick={() => setShowEditLink(true)} title="Add link">➕ Add Link</button>
+          )}
+          {showEditLink && linkBtnRef.current && (() => {
+            const rect = linkBtnRef.current.getBoundingClientRect()
+            let left = rect.left
+            let top = rect.bottom + 6
+            const popupW = 320
+            const popupH = 120
+            if (left + popupW > window.innerWidth - 8) left = Math.max(8, window.innerWidth - popupW - 8)
+            if (top + popupH > window.innerHeight - 8) top = Math.max(8, rect.top - popupH - 6)
+            let temp = job.link || ''
+            return (
+              <div
+                ref={linkPopupRef}
+                style={{
+                  position: 'fixed',
+                  top,
+                  left,
+                  background: 'var(--panel-bg)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 8,
+                  padding: 10,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  zIndex: 1000,
+                  minWidth: popupW,
+                }}
+              >
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input
+                    defaultValue={job.link}
+                    placeholder="https://..."
+                    className="form-control"
+                    style={{ flex: 1 }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const val = (e.currentTarget as HTMLInputElement).value
+                        update({ link: val }); setShowEditLink(false)
+                      } else if (e.key === 'Escape') {
+                        setShowEditLink(false)
+                      }
+                    }}
+                  />
+                  <button className="btn btn-primary btn-sm" onClick={() => {
+                    const input = (linkPopupRef.current?.querySelector('input') as HTMLInputElement)
+                    const val = input?.value || ''
+                    update({ link: val }); setShowEditLink(false)
+                  }}>Save</button>
+                  <button className="btn btn-outline-secondary btn-sm" onClick={() => setShowEditLink(false)}>Cancel</button>
+                </div>
+              </div>
+            )
+          })()}
+        </div>
+
+        {/* Status */}
+        <div className="d-flex align-items-center gap-2">
+          <button
+            ref={statusBtnRef}
+            className="job-status-badge"
+            style={{ backgroundColor: STATUS_COLORS[job.status] }}
+            onClick={() => setShowStatusMenu(v => !v)}
+            title="Change status"
+          >
+            {STATUS_LABELS[job.status]} ▾
+          </button>
+          {showStatusMenu && statusBtnRef.current && (
+            <div
+              ref={statusMenuRef}
+              style={{
+                position: 'fixed',
+                top: statusBtnRef.current.getBoundingClientRect().bottom + 6,
+                left: statusBtnRef.current.getBoundingClientRect().left,
+                background: 'var(--panel-bg)',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                padding: 8,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                zIndex: 1000,
+                minWidth: 200,
+              }}
+            >
+              {Object.keys(STATUS_LABELS).map((k) => {
+                const s = k as JobStatus
+                return (
+                  <button
+                    key={s}
+                    className="context-menu-item status-menu-item"
+                    onClick={() => { update({ status: s }); setShowStatusMenu(false) }}
+                  >
+                    <span className="status-color-dot" style={{ background: STATUS_COLORS[s] }} />
+                    <span>{STATUS_LABELS[s]}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Description */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <div
-          className="rte"
-          contentEditable
-          suppressContentEditableWarning
-          style={{ minHeight: 160 }}
-          data-placeholder="Job description / notes..."
-          dangerouslySetInnerHTML={{ __html: job.description || '' }}
-          onPaste={(e) => {
-            e.preventDefault()
-            const text = e.clipboardData.getData('text/plain')
-            document.execCommand('insertText', false, text)
-          }}
-          onBlur={(e) => {
-            const html = e.currentTarget.innerHTML
-            if (html !== job.description) update({ description: html })
-          }}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minHeight: 0 }}>
+        <h6 style={{ margin: 0, color: 'var(--text)', fontSize: '14px', fontWeight: '600' }}>Description</h6>
+        <RichTextEditor
+          content={job.description || ''}
+          onChange={(html) => update({ description: html })}
+          placeholder="Job description / notes..."
+          showToolbar={true}
         />
       </div>
     </div>

@@ -26,10 +26,18 @@ export function grayColor(darkMode: boolean = false): string {
 // Find next available color index that's not already used
 export function getNextAvailableColorIndex(paragraphs: Paragraph[], darkMode: boolean): number {
   const usedColors = new Set<string>()
+  // Consider explicitly set colors
   paragraphs.forEach(p => {
     if (p.color) usedColors.add(p.color)
   })
-  
+  // Also consider implicit auto-assigned palette colors used in UI for paragraphs
+  // that have keywords but no explicit color, based on their index position
+  paragraphs.forEach((p, i) => {
+    if (!p.color && p.keywords && p.keywords.length > 0) {
+      usedColors.add(hslForIndex(i, darkMode))
+    }
+  })
+
   // Try up to 12 colors in palette
   for (let i = 0; i < 12; i++) {
     const color = hslForIndex(i, darkMode)

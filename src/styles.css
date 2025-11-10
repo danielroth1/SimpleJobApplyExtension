@@ -189,6 +189,7 @@ body.dark-mode .form-control {
   border-radius: 8px;
   padding: 8px;
   transition: background-color 0.2s ease;
+  margin-bottom: 12px;
 }
 
 .paragraph-sidebar { 
@@ -203,7 +204,7 @@ body.dark-mode .form-control {
   display: flex; 
   flex-direction: column; 
   gap: 8px; 
-  min-width: 0; 
+  min-width: 0;
 }
 
 .drag-handle-btn { 
@@ -1018,4 +1019,42 @@ body.dark-mode .detail-btn:hover {
   font-size: 16px;
   width: 20px;
   text-align: center;
+}
+
+/* Tiptap Editor Styles */
+.tiptap-link {
+  color: #3b82f6;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.tiptap-link:hover {
+  color: #2563eb;
+}
+
+body.dark-mode .tiptap-link {
+  color: #60a5fa;
+}
+
+body.dark-mode .tiptap-link:hover {
+  color: #3b82f6;
+}
+
+/* Make Tiptap editor expand */
+.ProseMirror {
+  outline: none;
+  padding: 8px;
+  min-height: 100px;
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: text;
+}
+
+.tiptap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }

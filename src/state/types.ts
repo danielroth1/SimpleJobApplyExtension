@@ -14,6 +14,8 @@ export type Paragraph = {
   collapsed: boolean
   // Optional explicit color for this paragraph (CSS color string). If undefined, UI may fall back to palette.
   color?: string
+  // Flag to track if the color was manually picked by the user (vs auto-assigned)
+  userPickedColor?: boolean
   lastMatchedKeywords?: string[]
 }
 
@@ -74,7 +76,8 @@ export type AppActions = {
   removeKeyword: (paragraphId: string, keyword: string) => void
   moveKeyword: (paragraphId: string, fromIndex: number, toIndex: number) => void
   transferKeyword: (fromParagraphId: string, fromIndex: number, toParagraphId: string, toIndex?: number) => void
-  setParagraphColor: (paragraphId: string, color?: string) => void
+  setParagraphColor: (paragraphId: string, color?: string, userPicked?: boolean) => void
+  reassignParagraphColors: () => void
   reorderParagraphs: (fromIndex: number, toIndex: number) => void
   // Job actions
   addJob: () => void
@@ -91,7 +94,7 @@ export type AppActions = {
   setJobPostingRaw: (raw: string) => void
   analyzeNow: () => void
   generateCoverLetter: () => void
-  saveToFile: () => Promise<void>
+  saveToFile: (filename?: string) => Promise<void>
   loadFromFile: (file: File) => Promise<void>
   pasteFromClipboard: () => Promise<void>
   analyzeCurrentPage: () => Promise<void>
@@ -107,6 +110,6 @@ export type AppActions = {
   updateSiteRule: (domain: string, updates: Partial<SiteRule>) => void
   removeSiteRule: (domain: string) => void
   loadSiteRulesFromFile: (file: File) => Promise<void>
-  saveSiteRulesToFile: () => Promise<void>
+  saveSiteRulesToFile: (filename?: string) => Promise<void>
 }
 

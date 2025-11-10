@@ -152,12 +152,13 @@ export default function ParagraphGroups() {
                     className="insertion-line" 
                     style={{ 
                       position: 'absolute', 
+                      transform: 'translateY(-7px)', /* compensate gap between paragraphs */
                       left: 0, 
                       right: 0,
                       height: '3px', 
                       background: state.darkMode ? 'hsl(210 100% 60%)' : 'hsl(210 100% 50%)', 
                       zIndex: 100,
-                      top: i === 0 ? '4px' : undefined,
+                      top: i === 0 ? '4px' : 'undefined',
                       pointerEvents: 'none'
                     }}
                   >
@@ -167,7 +168,7 @@ export default function ParagraphGroups() {
                         position: 'absolute', 
                         top: '50%', 
                         left: '50%', 
-                        transform: 'translate(-50%, -60%)', 
+                        transform: 'translate(-50%, -50%)', 
                         width: 26, 
                         height: 26, 
                         borderRadius: '50%', 

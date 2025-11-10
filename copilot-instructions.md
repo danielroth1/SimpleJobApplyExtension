@@ -96,7 +96,7 @@ export function ProfileCard({ userId }: Props) {
 
 ## Styling
 - Default to CSS Modules for component styles: `ComponentName.module.css` imported as `styles`.
-- Use Tailwind utility classes for layout/spacing when appropriate, but prefer CSS Modules for component-specific styling/state.
+- Use bootstrap classes for common UI patterns when appropriate.
 
 ## Testing
 - Write unit tests for services (pure logic) and integration tests for components with React Testing Library.

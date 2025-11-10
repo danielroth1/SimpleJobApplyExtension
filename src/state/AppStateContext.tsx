@@ -115,7 +115,72 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(t)
   }, [state.siteRules])
 
-  
+  // Reassign colors when forceUniqueColors is enabled
+  useEffect(() => {
+    if (state.forceUniqueColors) {
+      // Use setTimeout to avoid immediate state update during render
+      const timer = setTimeout(() => {
+        setState(prev => {
+          if (!prev.forceUniqueColors) return prev
+          
+          const next = cloneState(prev)
+          
+          // Build a map of all used colors by paragraphs with user-picked colors
+          const userPickedColors = new Set<string>()
+          next.paragraphs.forEach(p => {
+            if (p.userPickedColor && p.color) {
+              userPickedColors.add(p.color)
+            }
+          })
+          
+          // Reset colors for paragraphs without user-picked colors
+          next.paragraphs.forEach(p => {
+            if (!p.userPickedColor) {
+              p.color = undefined
+            }
+          })
+          
+          // Assign colors to paragraphs without user-picked colors
+          let colorIndex = 0
+          const totalColors = Math.floor(360 / 47) // Based on hue calculation in hslForIndex
+          
+          next.paragraphs.forEach(p => {
+            if (!p.userPickedColor) {
+              // Find next available color
+              let attempts = 0
+              let assignedColor: string | undefined = undefined
+              
+              while (attempts < totalColors && !assignedColor) {
+                const candidateColor = hslForIndex(colorIndex, next.darkMode)
+                
+                if (!userPickedColors.has(candidateColor) && 
+                    !next.paragraphs.some(other => other.id !== p.id && other.color === candidateColor)) {
+                  assignedColor = candidateColor
+                } else {
+                  colorIndex++
+                  attempts++
+                }
+              }
+              
+              if (assignedColor) {
+                p.color = assignedColor
+              } else {
+                // All unique colors exhausted, just assign next color
+                p.color = hslForIndex(colorIndex, next.darkMode)
+              }
+              
+              colorIndex++
+            }
+          })
+          
+          // Regenerate cover letter to reflect color changes
+          next.coverLetterHTML = generateCoverLetterHTML(next.paragraphs, next.highlightInCoverLetter, next.darkMode)
+          return next
+        })
+      }, 0)
+      return () => clearTimeout(timer)
+    }
+  }, [state.forceUniqueColors, state.paragraphs.length])
 
   const addParagraph = useCallback(() => {
     setState(prev => ({
@@ -155,18 +220,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       const next = cloneState(prev)
       const p = next.paragraphs.find(p => p.id === paragraphId)
       if (!p) return prev
-      
       const existingTexts = new Set(p.keywords.map(k => k.text))
       if (existingTexts.has(keyword)) return prev
-      
       p.keywords = [...p.keywords, { text: keyword, matchWholeWord: false, matchCase: false }]
-      
-      // Auto-assign a color if none set and this is the first keyword
+      // Auto-assign a unique color only when first keyword added and no explicit color yet
       if (!p.color && p.keywords.length === 1) {
-        const nextIdx = getNextAvailableColorIndex(next.paragraphs, next.darkMode)
-        p.color = hslForIndex(nextIdx, next.darkMode)
+        const idx = getNextAvailableColorIndex(next.paragraphs, next.darkMode)
+        p.color = hslForIndex(idx, next.darkMode)
       }
-      
       return next
     })
   }, [])
@@ -192,38 +253,94 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       if (fromIndex < 0 || fromIndex >= fromP.keywords.length) return prev
       const [moved] = fromP.keywords.splice(fromIndex, 1)
       const insertIdx = typeof toIndex === 'number' && toIndex >= 0 && toIndex <= toP.keywords.length ? toIndex : toP.keywords.length
-      // Prevent duplicates in target paragraph
       if (!toP.keywords.some(k => k.text === moved.text)) {
         toP.keywords.splice(insertIdx, 0, moved)
       }
-      // Auto-assign color for target if needed
       if (!toP.color && toP.keywords.length === 1) {
-        const nextIdx = getNextAvailableColorIndex(next.paragraphs, next.darkMode)
-        toP.color = hslForIndex(nextIdx, next.darkMode)
+        const idx = getNextAvailableColorIndex(next.paragraphs, next.darkMode)
+        toP.color = hslForIndex(idx, next.darkMode)
       }
       return next
     })
   }, [])
 
-  const setParagraphColor = useCallback((paragraphId: string, color?: string) => {
+  // Reassign paragraph colors to ensure uniqueness when forceUniqueColors is enabled
+  const reassignParagraphColors = useCallback(() => {
+    setState(prev => {
+      if (!prev.forceUniqueColors) return prev
+      
+      const next = cloneState(prev)
+      
+      // Build a map of all used colors by paragraphs with user-picked colors
+      const userPickedColors = new Set<string>()
+      next.paragraphs.forEach(p => {
+        if (p.userPickedColor && p.color) {
+          userPickedColors.add(p.color)
+        }
+      })
+      
+      // Reset colors for paragraphs without user-picked colors
+      next.paragraphs.forEach(p => {
+        if (!p.userPickedColor) {
+          p.color = undefined
+        }
+      })
+      
+      // Assign colors to paragraphs without user-picked colors
+      let colorIndex = 0
+      let uniqueColorsExhausted = false
+      const totalColors = 360 / 47 // Based on hue calculation in hslForIndex
+      
+      next.paragraphs.forEach(p => {
+        if (!p.userPickedColor) {
+          // Find next available color
+          let attempts = 0
+          let assignedColor: string | undefined = undefined
+          
+          while (attempts < totalColors && !assignedColor) {
+            const candidateColor = hslForIndex(colorIndex, next.darkMode)
+            
+            if (!userPickedColors.has(candidateColor) && 
+                !next.paragraphs.some(other => other.id !== p.id && other.color === candidateColor)) {
+              assignedColor = candidateColor
+            } else {
+              colorIndex++
+              attempts++
+            }
+          }
+          
+          if (assignedColor) {
+            p.color = assignedColor
+          } else {
+            // All unique colors exhausted, just assign next color
+            uniqueColorsExhausted = true
+            p.color = hslForIndex(colorIndex, next.darkMode)
+          }
+          
+          colorIndex++
+        }
+      })
+      
+      // Regenerate cover letter to reflect color changes
+      next.coverLetterHTML = generateCoverLetterHTML(next.paragraphs, next.highlightInCoverLetter, next.darkMode)
+      return next
+    })
+  }, [])
+
+  const setParagraphColor = useCallback((paragraphId: string, color?: string, userPicked: boolean = false) => {
     setState(prev => {
       const next = cloneState(prev)
       const target = next.paragraphs.find(p => p.id === paragraphId)
       if (!target) return prev
-      if (!color) { target.color = undefined; }
-      else if (next.forceUniqueColors) {
-        const other = next.paragraphs.find(p => p.id !== paragraphId && p.color === color)
-        if (other) {
-          // Swap colors
-          const temp = other.color
-          other.color = target.color
-          target.color = temp || color
-        } else {
-          target.color = color
-        }
+      
+      if (!color) { 
+        target.color = undefined
+        target.userPickedColor = false
       } else {
         target.color = color
+        target.userPickedColor = userPicked
       }
+      
       // Regenerate cover letter to reflect color changes
       next.coverLetterHTML = generateCoverLetterHTML(next.paragraphs, next.highlightInCoverLetter, next.darkMode)
       return next
@@ -231,7 +348,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const toggleForceUniqueColors = useCallback(() => {
-    setState(prev => ({ ...prev, forceUniqueColors: !prev.forceUniqueColors }))
+    setState(prev => {
+      const next = { ...prev, forceUniqueColors: !prev.forceUniqueColors }
+      return next
+    })
   }, [])
 
   const updateKeyword = useCallback((paragraphId: string, oldText: string, updates: Partial<KeywordWithOptions>) => {
@@ -457,7 +577,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     })
   }, [])
 
-  const saveToFile = useCallback(async () => { 
+  const saveToFile = useCallback(async (filename?: string) => { 
     // Save all content including jobs and PDFs
     const dataToSave = {
       paragraphs: state.paragraphs,
@@ -468,7 +588,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       coverLetterHTML: state.coverLetterHTML,
       jobEditorHidden: state.jobEditorHidden,
     }
-    await downloadJson(dataToSave, `simple-job-apply-state.json`) 
+    await downloadJson(dataToSave, filename || `simple-job-apply-state.json`) 
   }, [state])
 
   const loadFromFile = useCallback(async (file: File) => {
@@ -615,8 +735,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const saveSiteRulesToFile = useCallback(async () => {
-    await downloadJson(state.siteRules, `site-rules.json`)
+  const saveSiteRulesToFile = useCallback(async (filename?: string) => {
+    await downloadJson(state.siteRules, filename || `site-rules.json`)
   }, [state.siteRules])
 
   const debugPageState = useCallback(async () => {
@@ -653,6 +773,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       moveKeyword,
       transferKeyword,
       setParagraphColor,
+      reassignParagraphColors,
       reorderParagraphs,
       addJob,
   updateJob,
@@ -684,7 +805,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       loadSiteRulesFromFile,
       saveSiteRulesToFile,
     }
-  }), [state, addParagraph, addParagraphAt, updateParagraph, deleteParagraph, addKeyword, updateKeyword, removeKeyword, moveKeyword, transferKeyword, setParagraphColor, reorderParagraphs, addJob, updateJob, deleteJob, reorderJobs, addPdfItem, updatePdfItem, deletePdfItem, reorderPdfItems, setJobPostingRaw, analyzeNow, generateCoverLetter, saveToFile, loadFromFile, pasteFromClipboard, analyzeCurrentPage, toggleDarkMode, toggleHighlightInCoverLetter, toggleAutoAnalyze, toggleDebugMode, toggleForceUniqueColors, highlightPageKeywords, debugPageState, addSiteRule, updateSiteRule, removeSiteRule, loadSiteRulesFromFile, saveSiteRulesToFile])
+  }), [state, addParagraph, addParagraphAt, updateParagraph, deleteParagraph, addKeyword, updateKeyword, removeKeyword, moveKeyword, transferKeyword, setParagraphColor, reassignParagraphColors, reorderParagraphs, addJob, updateJob, deleteJob, reorderJobs, addPdfItem, updatePdfItem, deletePdfItem, reorderPdfItems, setJobPostingRaw, analyzeNow, generateCoverLetter, saveToFile, loadFromFile, pasteFromClipboard, analyzeCurrentPage, toggleDarkMode, toggleHighlightInCoverLetter, toggleAutoAnalyze, toggleDebugMode, toggleForceUniqueColors, highlightPageKeywords, debugPageState, addSiteRule, updateSiteRule, removeSiteRule, loadSiteRulesFromFile, saveSiteRulesToFile])
 
   return (
     <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>

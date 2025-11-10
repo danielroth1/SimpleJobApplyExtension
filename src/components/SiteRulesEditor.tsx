@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React, { useRef, useState, useEffect } from 'react'
 import { useAppState } from '@/state/AppStateContext'
 import { SiteRule } from '@/state/types'
 
@@ -7,6 +7,10 @@ export default function SiteRulesEditor({ onClose }: { onClose: () => void }) {
   const [editingDomain, setEditingDomain] = useState<string | null>(null)
   const [newRule, setNewRule] = useState<Partial<SiteRule>>({ domain: '', selector: '', description: '' })
   const fileRef = useRef<HTMLInputElement>(null)
+  const [showSaveDialog, setShowSaveDialog] = useState(false)
+  const [saveFilename, setSaveFilename] = useState('site-rules')
+  const saveButtonRef = useRef<HTMLButtonElement>(null)
+  const saveDialogRef = useRef<HTMLDivElement>(null)
 
   const handleAddRule = () => {
     if (newRule.domain && newRule.selector) {
@@ -25,6 +29,30 @@ export default function SiteRulesEditor({ onClose }: { onClose: () => void }) {
       setEditingDomain(null)
     }
   }
+
+  const handleSave = () => {
+    setShowSaveDialog(true)
+  }
+
+  const handleSaveConfirm = async () => {
+    await actions.saveSiteRulesToFile(saveFilename + '.json')
+    setShowSaveDialog(false)
+  }
+
+  // Close save dialog when clicking outside
+  useEffect(() => {
+    if (showSaveDialog) {
+      const handleClickOutside = (e: MouseEvent) => {
+        const target = e.target as Element
+        if (saveDialogRef.current && !saveDialogRef.current.contains(target) && 
+            saveButtonRef.current && !saveButtonRef.current.contains(target)) {
+          setShowSaveDialog(false)
+        }
+      }
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showSaveDialog])
 
   return (
     <div style={{
@@ -280,16 +308,22 @@ export default function SiteRulesEditor({ onClose }: { onClose: () => void }) {
             cursor: 'pointer',
             fontSize: '13px',
           }}>📂 Load from File</button>
-          <button onClick={actions.saveSiteRulesToFile} style={{
-            flex: 1,
-            padding: '8px 16px',
-            border: '1px solid var(--border)',
-            borderRadius: '4px',
-            background: 'var(--input-bg)',
-            color: 'var(--text)',
-            cursor: 'pointer',
-            fontSize: '13px',
-          }}>💾 Save to File</button>
+          <button 
+            ref={saveButtonRef}
+            onClick={handleSave} 
+            style={{
+              flex: 1,
+              padding: '8px 16px',
+              border: '1px solid var(--border)',
+              borderRadius: '4px',
+              background: 'var(--input-bg)',
+              color: 'var(--text)',
+              cursor: 'pointer',
+              fontSize: '13px',
+            }}
+          >
+            💾 Save to File
+          </button>
         </div>
 
         <input
@@ -303,6 +337,86 @@ export default function SiteRulesEditor({ onClose }: { onClose: () => void }) {
             e.currentTarget.value = ''
           }}
         />
+
+        {/* Save dialog */}
+        {showSaveDialog && saveButtonRef.current && (() => {
+          const rect = saveButtonRef.current.getBoundingClientRect()
+          let left = rect.right + 8
+          let top = rect.top
+          const dialogW = 300
+          const dialogH = 140
+          
+          // Ensure dialog stays in viewport
+          if (left + dialogW > window.innerWidth - 8) {
+            left = Math.max(8, rect.left - dialogW - 8)
+          }
+          if (top + dialogH > window.innerHeight - 8) {
+            top = Math.max(8, window.innerHeight - dialogH - 8)
+          }
+
+          return (
+            <div
+              ref={saveDialogRef}
+              style={{
+                position: 'fixed',
+                top,
+                left,
+                background: 'var(--panel-bg)',
+                border: '1px solid var(--border)',
+                borderRadius: '8px',
+                padding: '16px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                zIndex: 10001,
+                minWidth: dialogW,
+              }}
+            >
+              <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: 'var(--text)' }}>
+                Save File
+              </div>
+              <input
+                autoFocus
+                type="text"
+                value={saveFilename}
+                onChange={(e) => setSaveFilename(e.target.value)}
+                placeholder="filename"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSaveConfirm()
+                  } else if (e.key === 'Escape') {
+                    setShowSaveDialog(false)
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  fontSize: '14px',
+                  border: '1px solid var(--border)',
+                  borderRadius: '4px',
+                  background: 'var(--input-bg)',
+                  color: 'var(--text)',
+                  marginBottom: '12px',
+                }}
+              />
+              <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '12px' }}>
+                .json extension will be added automatically
+              </div>
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                <button 
+                  onClick={() => setShowSaveDialog(false)}
+                  className="btn btn-outline-secondary btn-sm"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleSaveConfirm}
+                  className="btn btn-primary btn-sm"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          )
+        })()}
       </div>
     </div>
   )

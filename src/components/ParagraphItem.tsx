@@ -5,6 +5,7 @@ import { hslForIndex, opaqueColorForIndex, grayColor } from '@/state/logic'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import KeywordContextMenu from './KeywordContextMenu'
+import RichTextEditor from './RichTextEditor'
 
 export default function ParagraphItem({ paragraph, colorIndex }: { paragraph: Paragraph, colorIndex: number }) {
   const { actions, state } = useAppState()
@@ -16,12 +17,14 @@ export default function ParagraphItem({ paragraph, colorIndex }: { paragraph: Pa
   const [draggedKeywordIndex, setDraggedKeywordIndex] = useState<number | null>(null)
   const deleteButtonRef = useRef<HTMLButtonElement>(null)
   const deletePopupRef = useRef<HTMLDivElement>(null)
+  
   // Use paragraph color, or gray if no keywords and no color, or fallback to palette
   const color = useMemo(() => {
     if (paragraph.color) return paragraph.color
     if (paragraph.keywords.length === 0) return grayColor(state.darkMode)
     return hslForIndex(colorIndex, state.darkMode)
   }, [paragraph.color, paragraph.keywords.length, colorIndex, state.darkMode])
+
   const colorButtonRef = useRef<HTMLButtonElement>(null)
   const colorMenuRef = useRef<HTMLDivElement>(null)
   
@@ -60,7 +63,7 @@ export default function ParagraphItem({ paragraph, colorIndex }: { paragraph: Pa
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [showColorMenu])
-  
+
   // Determine if this paragraph has any matched keywords
   const hasMatchedKeywords = useMemo(() => 
     paragraph.lastMatchedKeywords && paragraph.lastMatchedKeywords.length > 0,
@@ -276,17 +279,10 @@ export default function ParagraphItem({ paragraph, colorIndex }: { paragraph: Pa
         </div>
         {/* Rich text editor - hidden when collapsed */}
         {!paragraph.collapsed && (
-          <div
-            className="rte"
-            contentEditable
-            suppressContentEditableWarning
-            dangerouslySetInnerHTML={{ __html: paragraph.html }}
-            onBlur={(e) => {
-              const newHtml = e.currentTarget.innerHTML
-              if (newHtml !== paragraph.html) {
-                actions.updateParagraph(paragraph.id, { html: newHtml })
-              }
-            }}
+          <RichTextEditor 
+            content={paragraph.html}
+            onChange={(html) => actions.updateParagraph(paragraph.id, { html })}
+            showToolbar={true}
           />
         )}
         {showColorMenu && colorButtonRef.current && (
@@ -313,7 +309,7 @@ export default function ParagraphItem({ paragraph, colorIndex }: { paragraph: Pa
                   <button
                     key={i}
                     onClick={() => { 
-                      actions.setParagraphColor(paragraph.id, actualColor); 
+                      actions.setParagraphColor(paragraph.id, actualColor, true); 
                       setShowColorMenu(false); 
                       setTimeout(() => { actions.analyzeNow(); actions.generateCoverLetter(); }, 50) 
                     }}
@@ -326,11 +322,11 @@ export default function ParagraphItem({ paragraph, colorIndex }: { paragraph: Pa
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
               <label style={{ fontSize: 12, color: 'var(--text)' }}>Custom</label>
               <input type="color" value={toHexColor(color)} onChange={(e) => { 
-                actions.setParagraphColor(paragraph.id, e.target.value); 
+                actions.setParagraphColor(paragraph.id, e.target.value, true); 
                 setTimeout(() => { actions.analyzeNow(); actions.generateCoverLetter(); }, 50) 
               }} />
               <button className="btn btn-outline-secondary btn-sm" onClick={() => { 
-                actions.setParagraphColor(paragraph.id, undefined); 
+                actions.setParagraphColor(paragraph.id, undefined, false); 
                 setShowColorMenu(false); 
                 setTimeout(() => { actions.analyzeNow(); actions.generateCoverLetter(); }, 50) 
               }}>Auto</button>

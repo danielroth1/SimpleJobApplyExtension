@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { AppActions, AppState, Paragraph, KeywordWithOptions, SiteRule, Job, PDFItem } from './types'
 import { cloneState, generateCoverLetterHTML, highlightJobPosting, hslForIndex, getNextAvailableColorIndex } from './logic'
 import { loadStateFromStorage, saveStateToStorage, downloadJson, readJsonFile, getPageText, getPageHtml, downloadFile, readClipboardText, saveSettings, loadSettings, type AppSettings, saveSiteRules, loadSiteRules } from '@/utils/storage'
@@ -107,7 +107,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     }
     const t = setTimeout(() => { saveSettings(settings) }, 300)
     return () => clearTimeout(t)
-  }, [state.darkMode, state.highlightInCoverLetter, state.autoAnalyze, state.debugMode])
+  }, [state.darkMode, state.highlightInCoverLetter, state.autoAnalyze, state.debugMode, state.forceUniqueColors])
 
   // Save site rules whenever they change
   useEffect(() => {
@@ -117,66 +117,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   // Reassign colors when forceUniqueColors is enabled
   useEffect(() => {
+    
     if (state.forceUniqueColors) {
       // Use setTimeout to avoid immediate state update during render
       const timer = setTimeout(() => {
-        setState(prev => {
-          if (!prev.forceUniqueColors) return prev
-          
-          const next = cloneState(prev)
-          
-          // Build a map of all used colors by paragraphs with user-picked colors
-          const userPickedColors = new Set<string>()
-          next.paragraphs.forEach(p => {
-            if (p.userPickedColor && p.color) {
-              userPickedColors.add(p.color)
-            }
-          })
-          
-          // Reset colors for paragraphs without user-picked colors
-          next.paragraphs.forEach(p => {
-            if (!p.userPickedColor) {
-              p.color = undefined
-            }
-          })
-          
-          // Assign colors to paragraphs without user-picked colors
-          let colorIndex = 0
-          const totalColors = Math.floor(360 / 47) // Based on hue calculation in hslForIndex
-          
-          next.paragraphs.forEach(p => {
-            if (!p.userPickedColor) {
-              // Find next available color
-              let attempts = 0
-              let assignedColor: string | undefined = undefined
-              
-              while (attempts < totalColors && !assignedColor) {
-                const candidateColor = hslForIndex(colorIndex, next.darkMode)
-                
-                if (!userPickedColors.has(candidateColor) && 
-                    !next.paragraphs.some(other => other.id !== p.id && other.color === candidateColor)) {
-                  assignedColor = candidateColor
-                } else {
-                  colorIndex++
-                  attempts++
-                }
-              }
-              
-              if (assignedColor) {
-                p.color = assignedColor
-              } else {
-                // All unique colors exhausted, just assign next color
-                p.color = hslForIndex(colorIndex, next.darkMode)
-              }
-              
-              colorIndex++
-            }
-          })
-          
-          // Regenerate cover letter to reflect color changes
-          next.coverLetterHTML = generateCoverLetterHTML(next.paragraphs, next.highlightInCoverLetter, next.darkMode)
-          return next
-        })
+        reassignParagraphColors();
       }, 0)
       return () => clearTimeout(timer)
     }
@@ -215,35 +160,105 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     }))
   }, [])
 
+  // Add a keyword to a paragraph without auto-assigning colors.
+  // Declared after reassignParagraphColors to avoid use-before-declaration.
+  const addKeywordRef = useRef<(paragraphId: string, keyword: string) => void>()
   const addKeyword = useCallback((paragraphId: string, keyword: string) => {
-    setState(prev => {
-      const next = cloneState(prev)
-      const p = next.paragraphs.find(p => p.id === paragraphId)
-      if (!p) return prev
-      const existingTexts = new Set(p.keywords.map(k => k.text))
-      if (existingTexts.has(keyword)) return prev
-      p.keywords = [...p.keywords, { text: keyword, matchWholeWord: false, matchCase: false }]
-      // Auto-assign a unique color only when first keyword added and no explicit color yet
-      if (!p.color && p.keywords.length === 1) {
-        const idx = getNextAvailableColorIndex(next.paragraphs, next.darkMode)
-        p.color = hslForIndex(idx, next.darkMode)
-      }
-      return next
-    })
+    if (addKeywordRef.current) addKeywordRef.current(paragraphId, keyword)
   }, [])
+
+  // Reorder a keyword inside a paragraph
+  const moveKeywordRef = useRef<(paragraphId: string, fromIndex: number, toIndex: number) => void>()
   const moveKeyword = useCallback((paragraphId: string, fromIndex: number, toIndex: number) => {
+    if (moveKeywordRef.current) moveKeywordRef.current(paragraphId, fromIndex, toIndex)
+  }, [])
+
+  // Reassign paragraph colors to ensure uniqueness when forceUniqueColors is enabled.
+  // Ensures paragraphs without keywords never retain a color.
+  const reassignParagraphColors = useCallback(() => {
     setState(prev => {
+      if (!prev.forceUniqueColors) return prev
       const next = cloneState(prev)
-      const p = next.paragraphs.find(p => p.id === paragraphId)
-      if (!p) return prev
-      if (fromIndex < 0 || fromIndex >= p.keywords.length || toIndex < 0 || toIndex >= p.keywords.length) return prev
-      const [moved] = p.keywords.splice(fromIndex, 1)
-      p.keywords.splice(toIndex, 0, moved)
+
+      // Gather user-picked colors (only paragraphs with keywords)
+      const userPickedColors = new Set<string>()
+      next.paragraphs.forEach(p => {
+        if (p.userPickedColor && p.color && p.keywords.length > 0) {
+          userPickedColors.add(p.color)
+        }
+      })
+
+      // Normalize colors according to keyword presence
+      next.paragraphs.forEach(p => {
+        if (p.keywords.length === 0) {
+          p.color = undefined
+          p.userPickedColor = false
+        } else if (!p.userPickedColor) {
+          p.color = undefined
+        }
+      })
+
+      // Assign colors to non user-picked paragraphs that have keywords
+      let colorIndex = 0
+      const totalColors = 360 / 47
+      next.paragraphs.forEach(p => {
+        if (p.keywords.length > 0 && !p.userPickedColor) {
+          let attempts = 0
+          let assigned: string | undefined
+          while (attempts < totalColors && !assigned) {
+            const candidate = hslForIndex(colorIndex, next.darkMode)
+            const inUse = userPickedColors.has(candidate) || next.paragraphs.some(o => o.id !== p.id && o.color === candidate)
+            if (!inUse) {
+              assigned = candidate
+            } else {
+              colorIndex++
+                if (!prev.forceUniqueColors) return prev
+      
+            }
+          }
+          p.color = assigned || hslForIndex(colorIndex, next.darkMode)
+          colorIndex++
+        }
+      })
+
+      next.coverLetterHTML = generateCoverLetterHTML(next.paragraphs, next.highlightInCoverLetter, next.darkMode)
       return next
     })
   }, [])
 
+  // Initialize the actual implementations after dependencies are declared
+  useEffect(() => {
+    addKeywordRef.current = (paragraphId: string, keyword: string) => {
+      let needsReassign = false
+      setState(prev => {
+        const next = cloneState(prev)
+        const p = next.paragraphs.find(p => p.id === paragraphId)
+        if (!p) return prev
+        const existingTexts = new Set(p.keywords.map(k => k.text))
+        if (existingTexts.has(keyword)) return prev
+        const wasEmpty = p.keywords.length === 0
+        p.keywords = [...p.keywords, { text: keyword, matchWholeWord: false, matchCase: false }]
+        if (wasEmpty && p.keywords.length === 1) needsReassign = true
+        return next
+      })
+      if (needsReassign) setTimeout(() => { try { reassignParagraphColors() } catch {} }, 0)
+    }
+    moveKeywordRef.current = (paragraphId: string, fromIndex: number, toIndex: number) => {
+      setState(prev => {
+        const next = cloneState(prev)
+        const p = next.paragraphs.find(p => p.id === paragraphId)
+        if (!p) return prev
+        if (fromIndex < 0 || fromIndex >= p.keywords.length || toIndex < 0 || toIndex >= p.keywords.length) return prev
+        const [moved] = p.keywords.splice(fromIndex, 1)
+        p.keywords.splice(toIndex, 0, moved)
+        return next
+      })
+    }
+  }, [reassignParagraphColors])
+  
+
   const transferKeyword = useCallback((fromParagraphId: string, fromIndex: number, toParagraphId: string, toIndex?: number) => {
+    let needsReassign = false
     setState(prev => {
       if (fromParagraphId === toParagraphId) return prev
       const next = cloneState(prev)
@@ -253,99 +268,104 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       if (fromIndex < 0 || fromIndex >= fromP.keywords.length) return prev
       const [moved] = fromP.keywords.splice(fromIndex, 1)
       const insertIdx = typeof toIndex === 'number' && toIndex >= 0 && toIndex <= toP.keywords.length ? toIndex : toP.keywords.length
+      const toWasEmpty = toP.keywords.length === 0
       if (!toP.keywords.some(k => k.text === moved.text)) {
         toP.keywords.splice(insertIdx, 0, moved)
       }
-      if (!toP.color && toP.keywords.length === 1) {
-        const idx = getNextAvailableColorIndex(next.paragraphs, next.darkMode)
-        toP.color = hslForIndex(idx, next.darkMode)
+      // Do not auto-assign any color; only user picks assign colors
+      if (toWasEmpty && toP.keywords.length === 1) {
+        needsReassign = true
+      }
+      if (fromP.keywords.length === 0) {
+        // Clear color if source lost its last keyword
+        fromP.color = undefined
+        fromP.userPickedColor = false
+        needsReassign = true
       }
       return next
     })
-  }, [])
-
-  // Reassign paragraph colors to ensure uniqueness when forceUniqueColors is enabled
-  const reassignParagraphColors = useCallback(() => {
-    setState(prev => {
-      if (!prev.forceUniqueColors) return prev
-      
-      const next = cloneState(prev)
-      
-      // Build a map of all used colors by paragraphs with user-picked colors
-      const userPickedColors = new Set<string>()
-      next.paragraphs.forEach(p => {
-        if (p.userPickedColor && p.color) {
-          userPickedColors.add(p.color)
-        }
-      })
-      
-      // Reset colors for paragraphs without user-picked colors
-      next.paragraphs.forEach(p => {
-        if (!p.userPickedColor) {
-          p.color = undefined
-        }
-      })
-      
-      // Assign colors to paragraphs without user-picked colors
-      let colorIndex = 0
-      let uniqueColorsExhausted = false
-      const totalColors = 360 / 47 // Based on hue calculation in hslForIndex
-      
-      next.paragraphs.forEach(p => {
-        if (!p.userPickedColor) {
-          // Find next available color
-          let attempts = 0
-          let assignedColor: string | undefined = undefined
-          
-          while (attempts < totalColors && !assignedColor) {
-            const candidateColor = hslForIndex(colorIndex, next.darkMode)
-            
-            if (!userPickedColors.has(candidateColor) && 
-                !next.paragraphs.some(other => other.id !== p.id && other.color === candidateColor)) {
-              assignedColor = candidateColor
-            } else {
-              colorIndex++
-              attempts++
-            }
-          }
-          
-          if (assignedColor) {
-            p.color = assignedColor
-          } else {
-            // All unique colors exhausted, just assign next color
-            uniqueColorsExhausted = true
-            p.color = hslForIndex(colorIndex, next.darkMode)
-          }
-          
-          colorIndex++
-        }
-      })
-      
-      // Regenerate cover letter to reflect color changes
-      next.coverLetterHTML = generateCoverLetterHTML(next.paragraphs, next.highlightInCoverLetter, next.darkMode)
-      return next
-    })
-  }, [])
+    if (needsReassign) {
+      setTimeout(() => {
+        try { reassignParagraphColors() } catch {}
+      }, 0)
+    }
+  }, [reassignParagraphColors])
+  
 
   const setParagraphColor = useCallback((paragraphId: string, color?: string, userPicked: boolean = false) => {
     setState(prev => {
       const next = cloneState(prev)
       const target = next.paragraphs.find(p => p.id === paragraphId)
       if (!target) return prev
-      
-      if (!color) { 
+
+      // Never assign a color to a paragraph without keywords
+      if (target.keywords.length === 0) {
+        target.color = undefined
+        target.userPickedColor = false
+        next.coverLetterHTML = generateCoverLetterHTML(next.paragraphs, next.highlightInCoverLetter, next.darkMode)
+        return next
+      }
+
+      if (!color) {
         target.color = undefined
         target.userPickedColor = false
       } else {
+        // Apply the picked color and flag to the target paragraph
+        const colorPrev = target.color
         target.color = color
         target.userPickedColor = userPicked
+
+        // If uniqueness is enforced and this was a user-picked color,
+        // resolve any conflicts by reassigning a new unused color to the other paragraph(s)
+        if (userPicked && next.forceUniqueColors) {
+          // Build a set of currently used colors (after applying target)
+          const usedColors = new Set<string>()
+          next.paragraphs.forEach(p => { if (p.color && p.keywords.length > 0) usedColors.add(p.color) })
+
+          // Find all conflicting paragraphs using the same color (excluding the target)
+          const conflicts = next.paragraphs.filter(p => p.id !== target.id && p.keywords.length > 0 && p.color === color)
+
+          // Helper to get the next unused color
+          const pickNextUnusedColor = (): string => {
+            let idx = 0
+            while (idx < 1000) { // safe upper bound
+              const candidate = hslForIndex(idx, next.darkMode)
+              if (!usedColors.has(candidate)) {
+                usedColors.add(candidate)
+                return candidate
+              }
+              idx++
+            }
+            // Fallback (should not normally hit)
+            return hslForIndex(0, next.darkMode)
+          }
+
+          // Reassign a fresh unused color to each conflicting paragraph
+          if (conflicts.length == 1) {
+            conflicts[0].color = colorPrev || pickNextUnusedColor()
+          }
+          else {
+            conflicts.forEach(conflict => {
+              conflict.userPickedColor = false
+              conflict.color = pickNextUnusedColor()
+            })
+          }
+        }
       }
-      
+
       // Regenerate cover letter to reflect color changes
       next.coverLetterHTML = generateCoverLetterHTML(next.paragraphs, next.highlightInCoverLetter, next.darkMode)
       return next
     })
-  }, [])
+
+    // If the user picked a color, run a full reassignment shortly after
+    // so non-user-picked paragraphs get unique colors as needed.
+    if (userPicked) {
+      setTimeout(() => {
+        try { reassignParagraphColors() } catch {}
+      }, 0)
+    }
+  }, [reassignParagraphColors])
 
   const toggleForceUniqueColors = useCallback(() => {
     setState(prev => {
@@ -367,14 +387,25 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const removeKeyword = useCallback((paragraphId: string, keyword: string) => {
+    let needsReassign = false
     setState(prev => {
       const next = cloneState(prev)
       const p = next.paragraphs.find(p => p.id === paragraphId)
       if (!p) return prev
       p.keywords = p.keywords.filter(k => k.text !== keyword)
+      if (p.keywords.length === 0) {
+        p.color = undefined
+        p.userPickedColor = false
+        needsReassign = true
+      }
       return next
     })
-  }, [])
+    if (needsReassign) {
+      setTimeout(() => {
+        try { reassignParagraphColors() } catch {}
+      }, 0)
+    }
+  }, [reassignParagraphColors])
 
   const reorderParagraphs = useCallback((fromIndex: number, toIndex: number) => {
     setState(prev => {

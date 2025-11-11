@@ -117,8 +117,8 @@ export default function ParagraphItem({ paragraph, colorIndex }: { paragraph: Pa
           <>
             <button
               ref={colorButtonRef}
-              className={`toggle ${paragraph.color ? 'active' : ''}`}
-              title={paragraph.color ? `Change color` : 'Assign color'}
+              className={`toggle ${paragraph.userPickedColor ? 'active' : ''}`}
+              title={paragraph.userPickedColor ? `Change color` : 'Assign color'}
               onClick={() => setShowColorMenu(v => !v)}
             >🎨</button>
             <button className={`toggle ${paragraph.included ? 'active' : ''}`} title="Included in cover letter" onClick={() => actions.updateParagraph(paragraph.id, { included: !paragraph.included })}>✓</button>
@@ -326,7 +326,7 @@ export default function ParagraphItem({ paragraph, colorIndex }: { paragraph: Pa
                 setTimeout(() => { actions.analyzeNow(); actions.generateCoverLetter(); }, 50) 
               }} />
               <button className="btn btn-outline-secondary btn-sm" onClick={() => { 
-                actions.setParagraphColor(paragraph.id, undefined, false); 
+                actions.setParagraphColor(paragraph.id, undefined, true); 
                 setShowColorMenu(false); 
                 setTimeout(() => { actions.analyzeNow(); actions.generateCoverLetter(); }, 50) 
               }}>Auto</button>

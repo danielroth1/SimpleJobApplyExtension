@@ -183,17 +183,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       // Gather user-picked colors (only paragraphs with keywords)
       const userPickedColors = new Set<string>()
       next.paragraphs.forEach(p => {
-        if (p.userPickedColor && p.color && p.keywords.length > 0) {
+        if (p.userPickedColor && p.color) {
           userPickedColors.add(p.color)
         }
       })
 
       // Normalize colors according to keyword presence
       next.paragraphs.forEach(p => {
-        if (p.keywords.length === 0) {
-          p.color = undefined
-          p.userPickedColor = false
-        } else if (!p.userPickedColor) {
+        if (!p.userPickedColor) {
           p.color = undefined
         }
       })
@@ -276,10 +273,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       if (toWasEmpty && toP.keywords.length === 1) {
         needsReassign = true
       }
-      if (fromP.keywords.length === 0) {
+      if (fromP.keywords.length === 0 && !fromP.userPickedColor) {
         // Clear color if source lost its last keyword
         fromP.color = undefined
-        fromP.userPickedColor = false
         needsReassign = true
       }
       return next
@@ -298,14 +294,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       const target = next.paragraphs.find(p => p.id === paragraphId)
       if (!target) return prev
 
-      // Never assign a color to a paragraph without keywords
-      if (target.keywords.length === 0) {
-        target.color = undefined
-        target.userPickedColor = false
-        next.coverLetterHTML = generateCoverLetterHTML(next.paragraphs, next.highlightInCoverLetter, next.darkMode)
-        return next
-      }
-
       if (!color) {
         target.color = undefined
         target.userPickedColor = false
@@ -320,10 +308,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         if (userPicked && next.forceUniqueColors) {
           // Build a set of currently used colors (after applying target)
           const usedColors = new Set<string>()
-          next.paragraphs.forEach(p => { if (p.color && p.keywords.length > 0) usedColors.add(p.color) })
+          next.paragraphs.forEach(p => { if (p.color) usedColors.add(p.color) })
 
           // Find all conflicting paragraphs using the same color (excluding the target)
-          const conflicts = next.paragraphs.filter(p => p.id !== target.id && p.keywords.length > 0 && p.color === color)
+          const conflicts = next.paragraphs.filter(p => p.id !== target.id && p.color === color)
 
           // Helper to get the next unused color
           const pickNextUnusedColor = (): string => {
@@ -393,9 +381,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       const p = next.paragraphs.find(p => p.id === paragraphId)
       if (!p) return prev
       p.keywords = p.keywords.filter(k => k.text !== keyword)
-      if (p.keywords.length === 0) {
+      if (p.keywords.length === 0 && !p.userPickedColor) {
         p.color = undefined
-        p.userPickedColor = false
         needsReassign = true
       }
       return next

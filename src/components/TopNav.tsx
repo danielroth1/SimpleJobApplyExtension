@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useAppState } from '../state/AppStateContext'
 import TopBar from './TopBar'
+import SiteRulesEditor from './SiteRulesEditor'
 
 interface TopNavProps {
   currentPage: string
@@ -16,6 +17,7 @@ interface TopNavProps {
 export default function TopNav({ currentPage, onNavigate, pageTitle, showTopBarControls, onBack, editableTitle, selectedJobId }: TopNavProps) {
   const { state, actions } = useAppState()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [showSiteRules, setShowSiteRules] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [titleInput, setTitleInput] = useState('')
@@ -201,6 +203,28 @@ export default function TopNav({ currentPage, onNavigate, pageTitle, showTopBarC
 
         <div className="burger-menu-section">
           <button 
+            className="burger-menu-item"
+            onClick={() => { setShowSiteRules(true); closeMenu() }}
+            title="Configure site rules for extracting job information"
+          >
+            <span className="burger-menu-icon">⚙️</span>
+            <span>Site Rules</span>
+          </button>
+          
+          <button 
+            className={`burger-menu-item ${currentPage === 'settings' ? 'active' : ''}`}
+            onClick={() => handleNavigate('settings')}
+            title="Application settings"
+          >
+            <span className="burger-menu-icon">🔧</span>
+            <span>Settings</span>
+          </button>
+        </div>
+
+        <div className="burger-menu-divider" />
+
+        <div className="burger-menu-section">
+          <button 
             className={`burger-menu-item ${currentPage === 'about' ? 'active' : ''}`}
             onClick={() => handleNavigate('about')}
             title="About this extension and contact information"
@@ -210,6 +234,8 @@ export default function TopNav({ currentPage, onNavigate, pageTitle, showTopBarC
           </button>
         </div>
       </div>
+
+      {showSiteRules && <SiteRulesEditor onClose={() => setShowSiteRules(false)} />}
 
       <input
         ref={fileInputRef}

@@ -49,7 +49,7 @@ export default function JobsPage({ onOpenJob }: { onOpenJob?: (id: string) => vo
     if (oldIndex !== -1 && newIndex !== -1) actions.reorderJobs(oldIndex, newIndex)
   }
 
-  const handleAddJob = () => {
+  const handleAddJob = async () => {
     // Create and immediately navigate to details using returned id when available
     let newId: string | undefined
     // Support both implementations gracefully
@@ -63,6 +63,19 @@ export default function JobsPage({ onOpenJob }: { onOpenJob?: (id: string) => vo
         if (last && onOpenJob) onOpenJob(last.id)
       }, 0)
     }
+    
+    // Try to prefill from page if enabled
+    if (newId && state.prefillNewJobs) {
+      try {
+        const data = await actions.extractJobDataFromPage()
+        if (data && Object.keys(data).length > 0) {
+          actions.updateJob(newId, data)
+        }
+      } catch (e) {
+        console.error('Failed to prefill job data:', e)
+      }
+    }
+    
     if (newId && onOpenJob) onOpenJob(newId)
   }
 

@@ -3,9 +3,10 @@ import React, { useState, useRef, useEffect } from 'react'
 interface BurgerMenuProps {
   currentPage: string
   onNavigate: (page: string) => void
+  onOpenSiteRules?: () => void
 }
 
-export default function BurgerMenu({ currentPage, onNavigate }: BurgerMenuProps) {
+export default function BurgerMenu({ currentPage, onNavigate, onOpenSiteRules }: BurgerMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -57,6 +58,29 @@ export default function BurgerMenu({ currentPage, onNavigate }: BurgerMenuProps)
           >
             <span className="burger-menu-icon">📄</span>
             <span>Combine PDFs</span>
+          </button>
+          
+          <div className="burger-menu-divider" />
+          
+          <button 
+            className="burger-menu-item"
+            onClick={() => {
+              onOpenSiteRules?.()
+              setIsOpen(false)
+            }}
+            title="Configure site rules for extracting job information"
+          >
+            <span className="burger-menu-icon">⚙️</span>
+            <span>Site Rules</span>
+          </button>
+          
+          <button 
+            className={`burger-menu-item ${currentPage === 'settings' ? 'active' : ''}`}
+            onClick={() => handleNavigate('settings')}
+            title="Application settings"
+          >
+            <span className="burger-menu-icon">🔧</span>
+            <span>Settings</span>
           </button>
           
           <div className="burger-menu-divider" />

@@ -6,6 +6,7 @@ import JobsPage from './pages/JobsPage'
 import JobDetailPage from './pages/JobDetailPage'
 import CombinePDFsPage from './pages/CombinePDFsPage'
 import AboutPage from './pages/AboutPage'
+import SettingsPage from './pages/SettingsPage'
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('job-analyzer')
@@ -21,6 +22,8 @@ export default function App() {
         return { page: <JobDetailPage jobId={selectedJobId} onBack={() => { setCurrentPage('jobs'); setSelectedJobId(null) }} />, showTopBar: false, title: undefined }
       case 'combine-pdfs':
         return { page: <CombinePDFsPage />, showTopBar: false, title: 'Combine PDFs' }
+      case 'settings':
+        return { page: <SettingsPage />, showTopBar: false, title: 'Settings' }
       case 'about':
         return { page: <AboutPage />, showTopBar: false, title: 'About' }
       default:

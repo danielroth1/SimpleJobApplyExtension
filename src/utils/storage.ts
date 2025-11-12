@@ -9,6 +9,7 @@ export type AppSettings = {
   autoAnalyze: boolean
   debugMode: boolean
   forceUniqueColors: boolean
+  prefillNewJobs: boolean
 }
 
 function getStorageApi(): any | null {

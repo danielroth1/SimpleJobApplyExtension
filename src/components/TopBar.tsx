@@ -1,93 +1,37 @@
-import React, { useRef, useState, useEffect } from 'react'
+import React from 'react'
 import { useAppState } from '@/state/AppStateContext'
-import SiteRulesEditor from './SiteRulesEditor'
 
 export default function TopBar() {
   const { state, actions } = useAppState()
-  const [showSettings, setShowSettings] = useState(false)
-  const [showSiteRules, setShowSiteRules] = useState(false)
-  const settingsRef = useRef<HTMLDivElement>(null)
 
-  // Close settings menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
-        setShowSettings(false)
+  const handleSaveJob = async () => {
+    // Create a new job
+    const newId = (actions as any).addJobAndGetId ? (actions as any).addJobAndGetId() : (() => {
+      actions.addJob()
+      return null
+    })()
+    
+    // Try to prefill from page if enabled and we have a job ID
+    if (newId && state.prefillNewJobs) {
+      try {
+        const data = await actions.extractJobDataFromPage()
+        if (data && Object.keys(data).length > 0) {
+          actions.updateJob(newId, data)
+        }
+      } catch (e) {
+        console.error('Failed to prefill job data:', e)
       }
     }
-
-    if (showSettings) {
-      document.addEventListener('mousedown', handleClickOutside)
-      return () => document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [showSettings])
+  }
 
   return (
     <div className="topbar-controls">
-      <button className="btn btn-primary btn-sm" onClick={actions.analyzeNow} title="Analyze the job posting and match keywords with your paragraphs">
-        🔍 Analyze
-      </button>
-      <button className="btn btn-outline-secondary btn-sm" onClick={actions.pasteFromClipboard} title="Paste job posting from clipboard">
-        📋 Paste posting
-      </button>
-      <button className="btn btn-outline-secondary btn-sm" onClick={actions.analyzeCurrentPage} title="Extract and analyze job posting from the current active tab">
+      <button className="btn btn-primary btn-sm" onClick={actions.analyzeCurrentPage} title="Extract and analyze job posting from the current active tab">
         🌐 Analyze current page
       </button>
-      <div className="settings-container" ref={settingsRef}>
-        <button 
-          className="btn btn-outline-secondary btn-sm" 
-          onClick={(e) => {
-            // Shift+click to toggle debug mode
-            if (e.shiftKey) {
-              actions.toggleDebugMode()
-            } else {
-              setShowSettings(!showSettings)
-            }
-          }}
-          title={state.debugMode ? "Settings (Debug Mode ON - Shift+click to disable)" : "Settings (Shift+click to enable Debug Mode)"}
-        >⚙</button>
-        {showSettings && (
-          <div className="settings-menu">
-            <div className="settings-menu-item" onClick={actions.toggleDarkMode}>
-              <span>{state.darkMode ? '☀' : '🌙'}</span>
-              <span>{state.darkMode ? 'Light Mode' : 'Dark Mode'}</span>
-            </div>
-            <div className="settings-menu-divider" />
-            <div className="settings-menu-item" title="When enabled, matching keywords are highlighted in the generated cover letter." onClick={actions.toggleHighlightInCoverLetter}>
-              <input type="checkbox" checked={state.highlightInCoverLetter} onChange={() => {}} />
-              <span>Highlight in cover letter</span>
-            </div>
-            <div className="settings-menu-item" title="When enabled, LinkedIn job pages automatically trigger analysis when you navigate to a new posting." onClick={actions.toggleAutoAnalyze}>
-              <input type="checkbox" checked={state.autoAnalyze} onChange={() => {}} />
-              <span>Auto-analyze pages</span>
-            </div>
-            <div className="settings-menu-item" title="Force paragraphs to keep unique colors; selecting a taken color swaps." onClick={actions.toggleForceUniqueColors}>
-              <input type="checkbox" checked={state.forceUniqueColors} onChange={() => {}} />
-              <span>Unique paragraph colors</span>
-            </div>
-            <div className="settings-menu-divider" />
-            <div className="settings-menu-item" onClick={() => { setShowSiteRules(true); setShowSettings(false); }}>
-              <span>🌐</span>
-              <span>Site Rules</span>
-            </div>
-            {state.debugMode && (
-              <>
-                <div className="settings-menu-divider" />
-                <div className="settings-menu-item" onClick={() => { actions.downloadCurrentPageHtml(); setShowSettings(false); }} title="Download current page as HTML">
-                  <span>⬇️</span>
-                  <span>Download page</span>
-                </div>
-                <div className="settings-menu-item" onClick={() => { actions.debugPageState(); setShowSettings(false); }} title="Debug: Log page DOM state to console">
-                  <span>🔍</span>
-                  <span>Debug</span>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-      </div>
-      
-      {showSiteRules && <SiteRulesEditor onClose={() => setShowSiteRules(false)} />}
+      <button className="btn btn-outline-secondary btn-sm" onClick={handleSaveJob} title="Save current page as a job">
+        💼 Save Job
+      </button>
     </div>
   )
 }

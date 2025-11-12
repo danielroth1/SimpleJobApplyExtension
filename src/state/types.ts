@@ -32,6 +32,7 @@ export type Job = {
   officeLocationCustom?: string
   description: string
   link: string
+  recruiter?: string
   status: JobStatus
   createdAt: number
   updatedAt: number
@@ -45,7 +46,11 @@ export type PDFItem = {
 
 export type SiteRule = {
   domain: string
-  selector: string
+  jobDescription?: string
+  jobTitle?: string
+  companyName?: string
+  labels?: string
+  jobPoster?: string
   description?: string
 }
 
@@ -64,6 +69,7 @@ export type AppState = {
   siteRules: SiteRule[]
   // Settings
   forceUniqueColors: boolean
+  prefillNewJobs: boolean
 }
 
 export type AppActions = {
@@ -104,6 +110,7 @@ export type AppActions = {
   toggleAutoAnalyze: () => void
   toggleDebugMode: () => void
   toggleForceUniqueColors: () => void
+  togglePrefillNewJobs: () => void
   highlightPageKeywords: () => Promise<void>
   debugPageState: () => Promise<void>
   addSiteRule: (rule: SiteRule) => void
@@ -111,5 +118,6 @@ export type AppActions = {
   removeSiteRule: (domain: string) => void
   loadSiteRulesFromFile: (file: File) => Promise<void>
   saveSiteRulesToFile: (filename?: string) => Promise<void>
+  extractJobDataFromPage: () => Promise<Partial<Job> | null>
 }
 

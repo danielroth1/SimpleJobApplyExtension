@@ -33,6 +33,8 @@ export default function JobDetailPage({ jobId, onBack }: { jobId: string | null;
   const [showStatusMenu, setShowStatusMenu] = useState(false)
   const [showOfficeMenu, setShowOfficeMenu] = useState(false)
   const [showEditLink, setShowEditLink] = useState(false)
+  const [fillError, setFillError] = useState<string | null>(null)
+  const [fillSuccess, setFillSuccess] = useState(false)
   const statusBtnRef = useRef<HTMLButtonElement>(null)
   const officeBtnRef = useRef<HTMLButtonElement>(null)
   const statusMenuRef = useRef<HTMLDivElement>(null)
@@ -65,28 +67,88 @@ export default function JobDetailPage({ jobId, onBack }: { jobId: string | null;
 
   const update = (patch: Partial<Job>) => actions.updateJob(job.id, { ...patch, updatedAt: Date.now() })
 
+  const handleFillFromPage = async () => {
+    setFillError(null)
+    setFillSuccess(false)
+    try {
+      const data = await actions.extractJobDataFromPage()
+      if (data && Object.keys(data).length > 0) {
+        // Only update fields that were extracted
+        const filteredData: Partial<Job> = {}
+        if (data.title) filteredData.title = data.title
+        if (data.company) filteredData.company = data.company
+        if (data.location) filteredData.location = data.location
+        if (data.description) filteredData.description = data.description
+        if (data.recruiter) filteredData.recruiter = data.recruiter
+        if (data.link) filteredData.link = data.link
+        
+        if (Object.keys(filteredData).length > 0) {
+          update(filteredData)
+          setFillSuccess(true)
+          setTimeout(() => setFillSuccess(false), 3000)
+        } else {
+          setFillError('No job information found on this page')
+        }
+      } else {
+        setFillError('No matching site rule for this page or no job data found')
+      }
+    } catch (e) {
+      console.error('Failed to extract job data:', e)
+      setFillError('Failed to extract job data from page')
+    }
+  }
+
   return (
     <div className="jobs-page">
+      {/* Fill from page button - top right */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12, gap: 8, alignItems: 'center' }}>
+        {fillSuccess && <span style={{ color: 'var(--success, #10b981)', fontSize: '14px' }}>✓ Filled from page</span>}
+        {fillError && <span style={{ color: 'var(--danger, #ef4444)', fontSize: '14px' }}>{fillError}</span>}
+        <button 
+          className="btn btn-outline-secondary btn-sm"
+          onClick={handleFillFromPage}
+          title="Extract job information from the current page"
+        >
+          📄 Fill from open page
+        </button>
+      </div>
 
       {/* Company */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <span title="Company">🏢</span>
+      <div style={{ marginBottom: 16 }}>
+        <h6 style={{ margin: 0, marginBottom: 6, color: 'var(--text)', fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span title="Company">🏢</span> Company
+        </h6>
         <input
           className="form-control"
           value={job.company}
-          placeholder="Company"
+          placeholder="Company name"
           onChange={(e) => update({ company: e.target.value })}
         />
       </div>
 
       {/* Location */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-        <span title="Location">📍</span>
+      <div style={{ marginBottom: 16 }}>
+        <h6 style={{ margin: 0, marginBottom: 6, color: 'var(--text)', fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span title="Location">📍</span> Office Location
+        </h6>
         <input
           className="form-control"
           value={job.location}
           placeholder="City, Country"
           onChange={(e) => update({ location: e.target.value })}
+        />
+      </div>
+
+      {/* Recruiter */}
+      <div style={{ marginBottom: 16 }}>
+        <h6 style={{ margin: 0, marginBottom: 6, color: 'var(--text)', fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span title="Recruiter">👤</span> Recruiter
+        </h6>
+        <input
+          className="form-control"
+          value={job.recruiter || ''}
+          placeholder="Recruiter name"
+          onChange={(e) => update({ recruiter: e.target.value })}
         />
       </div>
 
@@ -152,7 +214,7 @@ export default function JobDetailPage({ jobId, onBack }: { jobId: string | null;
                 href={job.link}
                 target="_blank"
                 rel="noopener noreferrer"
-                title="Open link"
+                title={job.link}
               >
                 🌐 Open Link
               </a>
@@ -260,7 +322,9 @@ export default function JobDetailPage({ jobId, onBack }: { jobId: string | null;
 
       {/* Description */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minHeight: 0 }}>
-        <h6 style={{ margin: 0, color: 'var(--text)', fontSize: '14px', fontWeight: '600' }}>Description</h6>
+        <h6 style={{ margin: 0, color: 'var(--text)', fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span title="Description / Notes">📝</span> Description
+        </h6>
         <RichTextEditor
           content={job.description || ''}
           onChange={(html) => update({ description: html })}

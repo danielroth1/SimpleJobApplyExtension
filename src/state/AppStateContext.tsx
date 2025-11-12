@@ -30,10 +30,42 @@ const defaultState: AppState = {
   autoAnalyze: true,
   debugMode: false,
   siteRules: [
-    { domain: 'linkedin.com', selector: 'article.jobs-description__container', description: 'LinkedIn job postings' },
-    { domain: 'indeed.com', selector: '[data-test-id="job-description"]', description: 'Indeed job postings' },
+    { 
+      domain: 'linkedin.com', 
+      jobDescription: 'article.jobs-description__container',
+      jobTitle: '.job-details-jobs-unified-top-card__job-title',
+      companyName: '.job-details-jobs-unified-top-card__company-name',
+      labels: '.job-details-fit-level-preferences',
+      jobPoster: '.jobs-poster__name',
+      description: 'LinkedIn job postings' 
+    },
+    { 
+      domain: 'indeed.com', 
+      jobDescription: '[data-test-id="job-description"]',
+      description: 'Indeed job postings' 
+    },
   ],
   forceUniqueColors: true,
+  prefillNewJobs: true,
+}
+
+// Migrate old SiteRule format (single selector) to new format (multiple fields)
+function migrateSiteRules(rules: SiteRule[]): SiteRule[] {
+  return rules.map(rule => {
+    // Check if this is an old-format rule with a 'selector' field
+    const oldRule = rule as any
+    if (oldRule.selector && typeof oldRule.selector === 'string') {
+      // Migrate old format to new format
+      // For old rules, assume the selector was for job description
+      return {
+        domain: rule.domain,
+        jobDescription: oldRule.selector,
+        description: rule.description,
+      } as SiteRule
+    }
+    // Already in new format or empty, return as-is
+    return rule
+  })
 }
 
 function normalizeLoadedState(s: Partial<AppState> | null): AppState {
@@ -65,6 +97,7 @@ function normalizeLoadedState(s: Partial<AppState> | null): AppState {
     debugMode: s.debugMode ?? defaultState.debugMode,
     siteRules: s.siteRules ?? defaultState.siteRules,
     forceUniqueColors: s.forceUniqueColors ?? defaultState.forceUniqueColors,
+    prefillNewJobs: s.prefillNewJobs ?? defaultState.prefillNewJobs,
   }
 }
 
@@ -82,9 +115,20 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         normalizedState.autoAnalyze = settings.autoAnalyze
         normalizedState.debugMode = settings.debugMode
         normalizedState.forceUniqueColors = settings.forceUniqueColors ?? normalizedState.forceUniqueColors
+        normalizedState.prefillNewJobs = settings.prefillNewJobs ?? normalizedState.prefillNewJobs
       }
-      if (rules) {
-        normalizedState.siteRules = rules
+      if (rules && Array.isArray(rules)) {
+        // Migrate old site rules format to new format
+        const migratedRules = migrateSiteRules(rules)
+        normalizedState.siteRules = migratedRules
+        
+        // Check if migration happened (rules changed)
+        const rulesChanged = JSON.stringify(rules) !== JSON.stringify(migratedRules)
+        if (rulesChanged) {
+          console.log('[AppState] Migrated site rules from old format to new format')
+          // Save the migrated rules back to storage
+          setTimeout(() => saveSiteRules(migratedRules), 100)
+        }
       }
       setState(normalizedState)
     })
@@ -104,10 +148,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       autoAnalyze: state.autoAnalyze,
       debugMode: state.debugMode,
       forceUniqueColors: state.forceUniqueColors,
+      prefillNewJobs: state.prefillNewJobs,
     }
     const t = setTimeout(() => { saveSettings(settings) }, 300)
     return () => clearTimeout(t)
-  }, [state.darkMode, state.highlightInCoverLetter, state.autoAnalyze, state.debugMode, state.forceUniqueColors])
+  }, [state.darkMode, state.highlightInCoverLetter, state.autoAnalyze, state.debugMode, state.forceUniqueColors, state.prefillNewJobs])
 
   // Save site rules whenever they change
   useEffect(() => {
@@ -731,10 +776,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const loadSiteRulesFromFile = useCallback(async (file: File) => {
     const data = await readJsonFile(file)
     if (data && Array.isArray(data)) {
-      // Validate and merge rules
+      // Validate and merge rules (handle both old and new format)
       setState(prev => {
         const validRules = data.filter((r: any) => 
-          r && typeof r === 'object' && typeof r.domain === 'string' && typeof r.selector === 'string'
+          r && typeof r === 'object' && typeof r.domain === 'string' && 
+          (typeof r.selector === 'string' || r.jobDescription || r.jobTitle || r.companyName || r.jobLocation || r.jobPoster)
         ) as SiteRule[]
         
         const merged = [...prev.siteRules]
@@ -778,6 +824,57 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     }
   }, [state.siteRules])
 
+  const togglePrefillNewJobs = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      prefillNewJobs: !prev.prefillNewJobs
+    }))
+  }, [])
+
+  const extractJobDataFromPage = useCallback(async (): Promise<Partial<Job> | null> => {
+    const api = (window as any).browser ?? (window as any).chrome
+    if (!api?.tabs?.query) {
+      console.error('Cannot extract: tabs API not available')
+      return null
+    }
+    
+    try {
+      const [tab] = await api.tabs.query({ active: true, currentWindow: true })
+      if (!tab?.id || !tab.url) {
+        console.error('No active tab found')
+        return null
+      }
+      
+      // Find matching site rule
+      const url = new URL(tab.url)
+      const domain = url.hostname.replace(/^www\./, '')
+      const rule = state.siteRules.find(r => domain.includes(r.domain))
+      
+      if (!rule) {
+        console.log('No matching site rule for domain:', domain)
+        return null
+      }
+      
+      // Request extraction from content script
+      return new Promise((resolve) => {
+        api.tabs.sendMessage(tab.id, { 
+          type: 'EXTRACT_JOB_DATA', 
+          siteRule: rule 
+        }, (response: any) => {
+          if (api.runtime.lastError) {
+            console.error('Extract error:', api.runtime.lastError)
+            resolve(null)
+            return
+          }
+          resolve(response || null)
+        })
+      })
+    } catch (e) {
+      console.error('Extract error:', e)
+      return null
+    }
+  }, [state.siteRules])
+
   const value = useMemo(() => ({
     state,
     actions: {
@@ -815,6 +912,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       toggleAutoAnalyze,
       toggleDebugMode,
       toggleForceUniqueColors,
+      togglePrefillNewJobs,
       highlightPageKeywords,
       debugPageState,
       addSiteRule,
@@ -822,8 +920,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       removeSiteRule,
       loadSiteRulesFromFile,
       saveSiteRulesToFile,
+      extractJobDataFromPage,
     }
-  }), [state, addParagraph, addParagraphAt, updateParagraph, deleteParagraph, addKeyword, updateKeyword, removeKeyword, moveKeyword, transferKeyword, setParagraphColor, reassignParagraphColors, reorderParagraphs, addJob, updateJob, deleteJob, reorderJobs, addPdfItem, updatePdfItem, deletePdfItem, reorderPdfItems, setJobPostingRaw, analyzeNow, generateCoverLetter, saveToFile, loadFromFile, pasteFromClipboard, analyzeCurrentPage, toggleDarkMode, toggleHighlightInCoverLetter, toggleAutoAnalyze, toggleDebugMode, toggleForceUniqueColors, highlightPageKeywords, debugPageState, addSiteRule, updateSiteRule, removeSiteRule, loadSiteRulesFromFile, saveSiteRulesToFile])
+  }), [state, addParagraph, addParagraphAt, updateParagraph, deleteParagraph, addKeyword, updateKeyword, removeKeyword, moveKeyword, transferKeyword, setParagraphColor, reassignParagraphColors, reorderParagraphs, addJob, updateJob, deleteJob, reorderJobs, addPdfItem, updatePdfItem, deletePdfItem, reorderPdfItems, setJobPostingRaw, analyzeNow, generateCoverLetter, saveToFile, loadFromFile, pasteFromClipboard, analyzeCurrentPage, toggleDarkMode, toggleHighlightInCoverLetter, toggleAutoAnalyze, toggleDebugMode, toggleForceUniqueColors, togglePrefillNewJobs, highlightPageKeywords, debugPageState, addSiteRule, updateSiteRule, removeSiteRule, loadSiteRulesFromFile, saveSiteRulesToFile, extractJobDataFromPage])
 
   return (
     <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>

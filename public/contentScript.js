@@ -139,6 +139,88 @@ window.debugJobExtension = debugPageState
 
 // Respond with page text when asked
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg?.type === 'EXTRACT_JOB_DATA') {
+    // Extract job data based on site rules
+    (async () => {
+      try {
+        const siteRule = msg.siteRule
+        if (!siteRule) {
+          sendResponse(null)
+          return
+        }
+        
+        const jobData = {}
+        
+        // Extract job title
+        if (siteRule.jobTitle) {
+          const titleEl = document.querySelector(siteRule.jobTitle)
+          if (titleEl) {
+            jobData.title = titleEl.innerText?.trim()
+          }
+        }
+        
+        // Extract company name
+        if (siteRule.companyName) {
+          const companyEl = document.querySelector(siteRule.companyName)
+          if (companyEl) {
+            jobData.company = companyEl.innerText?.trim()
+          }
+        }
+        
+        // Extract labels (location type indicators like "hybrid", "remote", etc.)
+        if (siteRule.labels) {
+          const labelsEl = document.querySelector(siteRule.labels)
+          if (labelsEl) {
+            const labelsText = labelsEl.innerText?.trim()
+            if (labelsText) {
+              // Extract location type from labels text
+              const lowerText = labelsText.toLowerCase()
+              if (lowerText.includes('hybrid')) {
+                jobData.location = 'Hybrid'
+              } else if (lowerText.includes('remote')) {
+                jobData.location = 'Remote'
+              } else if (lowerText.includes('on site') || lowerText.includes('on-site') || lowerText.includes('vor ort')) {
+                jobData.location = 'On site'
+              } else {
+                // If no match, use the raw text
+                jobData.location = labelsText
+              }
+            }
+          }
+        }
+        
+        // Extract job description
+        if (siteRule.jobDescription) {
+          // Wait for content to load if LinkedIn
+          if (siteRule.domain === 'linkedin.com') {
+            await waitForLinkedInJobToLoad()
+          }
+          const descEl = await findElementWithRetry(siteRule.jobDescription)
+          if (descEl) {
+            jobData.description = descEl.innerHTML
+          }
+        }
+        
+        // Extract job poster (recruiter)
+        if (siteRule.jobPoster) {
+          const posterEl = document.querySelector(siteRule.jobPoster)
+          if (posterEl) {
+            jobData.recruiter = posterEl.innerText?.trim()
+          }
+        }
+        
+        // Add current page URL as link
+        jobData.link = window.location.href
+        
+        sendResponse(jobData)
+      } catch (e) {
+        console.error('[ContentScript] Extract error:', e)
+        sendResponse(null)
+      }
+    })()
+    return true
+  }
+
   if (msg?.type === 'SIMPLE_GET_PAGE_TEXT') {
     // Use async IIFE to handle async operations
     (async () => {

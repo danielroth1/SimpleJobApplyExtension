@@ -5,7 +5,15 @@ import { SiteRule } from '@/state/types'
 export default function SiteRulesEditor({ onClose }: { onClose: () => void }) {
   const { state, actions } = useAppState()
   const [editingDomain, setEditingDomain] = useState<string | null>(null)
-  const [newRule, setNewRule] = useState<Partial<SiteRule>>({ domain: '', selector: '', description: '' })
+  const [newRule, setNewRule] = useState<Partial<SiteRule>>({ 
+    domain: '', 
+    jobDescription: '', 
+    jobTitle: '',
+    companyName: '',
+    labels: '',
+    jobPoster: '',
+    description: '' 
+  })
   const fileRef = useRef<HTMLInputElement>(null)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [saveFilename, setSaveFilename] = useState('site-rules')
@@ -13,21 +21,30 @@ export default function SiteRulesEditor({ onClose }: { onClose: () => void }) {
   const saveDialogRef = useRef<HTMLDivElement>(null)
 
   const handleAddRule = () => {
-    if (newRule.domain && newRule.selector) {
+    if (newRule.domain) {
       actions.addSiteRule({
         domain: newRule.domain,
-        selector: newRule.selector,
+        jobDescription: newRule.jobDescription,
+        jobTitle: newRule.jobTitle,
+        companyName: newRule.companyName,
+        labels: newRule.labels,
+        jobPoster: newRule.jobPoster,
         description: newRule.description || undefined,
       })
-      setNewRule({ domain: '', selector: '', description: '' })
+      setNewRule({ 
+        domain: '', 
+        jobDescription: '', 
+        jobTitle: '',
+        companyName: '',
+        labels: '',
+        jobPoster: '',
+        description: '' 
+      })
     }
   }
 
   const handleSaveEdit = (domain: string) => {
-    const rule = state.siteRules.find(r => r.domain === domain)
-    if (rule) {
-      setEditingDomain(null)
-    }
+    setEditingDomain(null)
   }
 
   const handleSave = () => {
@@ -39,7 +56,6 @@ export default function SiteRulesEditor({ onClose }: { onClose: () => void }) {
     setShowSaveDialog(false)
   }
 
-  // Close save dialog when clicking outside
   useEffect(() => {
     if (showSaveDialog) {
       const handleClickOutside = (e: MouseEvent) => {
@@ -53,6 +69,36 @@ export default function SiteRulesEditor({ onClose }: { onClose: () => void }) {
       return () => document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [showSaveDialog])
+
+  const renderSelectorField = (label: string, value: string | undefined, field: keyof SiteRule, domain?: string) => (
+    <div style={{ marginBottom: '8px' }}>
+      <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', color: 'var(--text)' }}>
+        {label}
+      </label>
+      <input
+        type="text"
+        value={value || ''}
+        placeholder="CSS selector (optional)"
+        onChange={(e) => {
+          if (domain) {
+            actions.updateSiteRule(domain, { [field]: e.target.value })
+          } else {
+            setNewRule({ ...newRule, [field]: e.target.value })
+          }
+        }}
+        style={{
+          width: '100%',
+          padding: '6px 8px',
+          border: '1px solid var(--border)',
+          borderRadius: '4px',
+          background: 'var(--input-bg)',
+          color: 'var(--text)',
+          fontSize: '13px',
+          fontFamily: 'monospace',
+        }}
+      />
+    </div>
+  )
 
   return (
     <div style={{
@@ -71,7 +117,7 @@ export default function SiteRulesEditor({ onClose }: { onClose: () => void }) {
         background: 'var(--panel-bg)',
         borderRadius: '12px',
         padding: '24px',
-        maxWidth: '700px',
+        maxWidth: '800px',
         width: '90%',
         maxHeight: '80vh',
         overflow: 'auto',
@@ -92,10 +138,9 @@ export default function SiteRulesEditor({ onClose }: { onClose: () => void }) {
         </div>
 
         <div style={{ marginBottom: '20px', fontSize: '14px', color: 'var(--muted)' }}>
-          Site rules define CSS selectors for extracting job postings from specific domains.
+          Site rules define CSS selectors for extracting job information from specific domains.
         </div>
 
-        {/* Rule list */}
         <div style={{ marginBottom: '24px' }}>
           {state.siteRules.map(rule => (
             <div key={rule.domain} style={{
@@ -124,28 +169,17 @@ export default function SiteRulesEditor({ onClose }: { onClose: () => void }) {
                       }}
                     />
                   </div>
-                  <div style={{ marginBottom: '8px' }}>
-                    <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', color: 'var(--text)' }}>Selector</label>
-                    <input
-                      type="text"
-                      value={rule.selector}
-                      onChange={(e) => actions.updateSiteRule(rule.domain, { selector: e.target.value })}
-                      style={{
-                        width: '100%',
-                        padding: '6px 8px',
-                        border: '1px solid var(--border)',
-                        borderRadius: '4px',
-                        background: 'var(--input-bg)',
-                        color: 'var(--text)',
-                        fontSize: '13px',
-                      }}
-                    />
-                  </div>
+                  {renderSelectorField('Job description', rule.jobDescription, 'jobDescription', rule.domain)}
+                  {renderSelectorField('Job title', rule.jobTitle, 'jobTitle', rule.domain)}
+                  {renderSelectorField('Company name', rule.companyName, 'companyName', rule.domain)}
+                  {renderSelectorField('Labels', rule.labels, 'labels', rule.domain)}
+                  {renderSelectorField('Job poster name', rule.jobPoster, 'jobPoster', rule.domain)}
                   <div style={{ marginBottom: '12px' }}>
                     <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', color: 'var(--text)' }}>Description (optional)</label>
                     <input
                       type="text"
                       value={rule.description || ''}
+                      placeholder="e.g. LinkedIn job postings"
                       onChange={(e) => actions.updateSiteRule(rule.domain, { description: e.target.value })}
                       style={{
                         width: '100%',
@@ -181,21 +215,11 @@ export default function SiteRulesEditor({ onClose }: { onClose: () => void }) {
                 </div>
               ) : (
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text)', marginBottom: '4px' }}>
-                        {rule.domain}
-                      </div>
-                      {rule.description && (
-                        <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '6px' }}>
-                          {rule.description}
-                        </div>
-                      )}
-                      <div style={{ fontSize: '12px', fontFamily: 'monospace', color: 'var(--muted)' }}>
-                        {rule.selector}
-                      </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text)' }}>
+                      {rule.domain}
                     </div>
-                    <div style={{ display: 'flex', gap: '8px', marginLeft: '12px' }}>
+                    <div style={{ display: 'flex', gap: '8px' }}>
                       <button onClick={() => setEditingDomain(rule.domain)} style={{
                         padding: '4px 8px',
                         border: '1px solid var(--border)',
@@ -216,13 +240,24 @@ export default function SiteRulesEditor({ onClose }: { onClose: () => void }) {
                       }}>Delete</button>
                     </div>
                   </div>
+                  {rule.description && (
+                    <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '6px' }}>
+                      {rule.description}
+                    </div>
+                  )}
+                  <div style={{ fontSize: '11px', color: 'var(--muted)', display: 'grid', gridTemplateColumns: '140px 1fr', gap: '4px', fontFamily: 'monospace' }}>
+                    {rule.jobDescription && <><span>Job description:</span><span>{rule.jobDescription}</span></>}
+                    {rule.jobTitle && <><span>Job title:</span><span>{rule.jobTitle}</span></>}
+                    {rule.companyName && <><span>Company name:</span><span>{rule.companyName}</span></>}
+                    {rule.labels && <><span>Labels:</span><span>{rule.labels}</span></>}
+                    {rule.jobPoster && <><span>Job poster:</span><span>{rule.jobPoster}</span></>}
+                  </div>
                 </div>
               )}
             </div>
           ))}
         </div>
 
-        {/* Add new rule */}
         <div style={{
           border: '2px dashed var(--border)',
           borderRadius: '8px',
@@ -231,7 +266,7 @@ export default function SiteRulesEditor({ onClose }: { onClose: () => void }) {
         }}>
           <h3 style={{ margin: '0 0 12px 0', fontSize: '14px', color: 'var(--text)' }}>Add New Rule</h3>
           <div style={{ marginBottom: '8px' }}>
-            <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', color: 'var(--text)' }}>Domain</label>
+            <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', color: 'var(--text)' }}>Domain *</label>
             <input
               type="text"
               placeholder="e.g. linkedin.com"
@@ -248,24 +283,11 @@ export default function SiteRulesEditor({ onClose }: { onClose: () => void }) {
               }}
             />
           </div>
-          <div style={{ marginBottom: '8px' }}>
-            <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', color: 'var(--text)' }}>CSS Selector</label>
-            <input
-              type="text"
-              placeholder="e.g. article.jobs-description__container"
-              value={newRule.selector}
-              onChange={(e) => setNewRule({ ...newRule, selector: e.target.value })}
-              style={{
-                width: '100%',
-                padding: '6px 8px',
-                border: '1px solid var(--border)',
-                borderRadius: '4px',
-                background: 'var(--input-bg)',
-                color: 'var(--text)',
-                fontSize: '13px',
-              }}
-            />
-          </div>
+          {renderSelectorField('Job description', newRule.jobDescription, 'jobDescription')}
+          {renderSelectorField('Job title', newRule.jobTitle, 'jobTitle')}
+          {renderSelectorField('Company name', newRule.companyName, 'companyName')}
+          {renderSelectorField('Labels', newRule.labels, 'labels')}
+          {renderSelectorField('Job poster name', newRule.jobPoster, 'jobPoster')}
           <div style={{ marginBottom: '12px' }}>
             <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', color: 'var(--text)' }}>Description (optional)</label>
             <input
@@ -284,19 +306,18 @@ export default function SiteRulesEditor({ onClose }: { onClose: () => void }) {
               }}
             />
           </div>
-          <button onClick={handleAddRule} disabled={!newRule.domain || !newRule.selector} style={{
+          <button onClick={handleAddRule} disabled={!newRule.domain} style={{
             padding: '8px 16px',
             border: '1px solid var(--border)',
             borderRadius: '4px',
-            background: newRule.domain && newRule.selector ? 'var(--primary)' : 'var(--muted)',
+            background: newRule.domain ? 'var(--primary)' : 'var(--muted)',
             color: 'white',
-            cursor: newRule.domain && newRule.selector ? 'pointer' : 'not-allowed',
+            cursor: newRule.domain ? 'pointer' : 'not-allowed',
             fontSize: '13px',
             fontWeight: '600',
           }}>Add Rule</button>
         </div>
 
-        {/* Load/Save buttons */}
         <div style={{ display: 'flex', gap: '12px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
           <button onClick={() => fileRef.current?.click()} style={{
             flex: 1,
@@ -338,7 +359,6 @@ export default function SiteRulesEditor({ onClose }: { onClose: () => void }) {
           }}
         />
 
-        {/* Save dialog */}
         {showSaveDialog && saveButtonRef.current && (() => {
           const rect = saveButtonRef.current.getBoundingClientRect()
           let left = rect.right + 8
@@ -346,7 +366,6 @@ export default function SiteRulesEditor({ onClose }: { onClose: () => void }) {
           const dialogW = 300
           const dialogH = 140
           
-          // Ensure dialog stays in viewport
           if (left + dialogW > window.innerWidth - 8) {
             left = Math.max(8, rect.left - dialogW - 8)
           }

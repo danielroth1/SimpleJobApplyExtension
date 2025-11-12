@@ -212,6 +212,17 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         // Add current page URL as link
         jobData.link = window.location.href
         
+        // Extract job ID from URL parameter (e.g., currentJobId=123456)
+        try {
+          const urlParams = new URLSearchParams(window.location.search)
+          const jobId = urlParams.get('currentJobId')
+          if (jobId) {
+            jobData.externalId = jobId
+          }
+        } catch (e) {
+          console.warn('[ContentScript] Failed to extract job ID from URL:', e)
+        }
+        
         sendResponse(jobData)
       } catch (e) {
         console.error('[ContentScript] Extract error:', e)
@@ -238,7 +249,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
               console.log('[ContentScript] LinkedIn detected, waiting for job to load...')
               await waitForLinkedInJobToLoad()
             }
-            const el = await findElementWithRetry(rule.selector)
+            const el = await findElementWithRetry(rule.jobDescription)
             if (el) {
               text = el.innerText
               sendResponse({ ok: true, text })
@@ -304,7 +315,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       
       for (const rule of siteRules) {
         if (hostname.includes(rule.domain)) {
-          const siteContainer = document.querySelector(rule.selector)
+          const siteContainer = document.querySelector(rule.jobDescription)
           if (siteContainer) {
             container = siteContainer
             break

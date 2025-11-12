@@ -33,6 +33,7 @@ export type Job = {
   description: string
   link: string
   recruiter?: string
+  externalId?: string // Job ID from external site (e.g., LinkedIn job ID from URL)
   status: JobStatus
   createdAt: number
   updatedAt: number

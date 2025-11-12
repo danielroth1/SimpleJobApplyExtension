@@ -54,12 +54,12 @@ function migrateSiteRules(rules: SiteRule[]): SiteRule[] {
   return rules.map(rule => {
     // Check if this is an old-format rule with a 'selector' field
     const oldRule = rule as any
-    if (oldRule.selector && typeof oldRule.selector === 'string') {
+    if (oldRule.jobDescription && typeof oldRule.jobDescription === 'string') {
       // Migrate old format to new format
       // For old rules, assume the selector was for job description
       return {
         domain: rule.domain,
-        jobDescription: oldRule.selector,
+        jobDescription: oldRule.jobDescription,
         description: rule.description,
       } as SiteRule
     }
@@ -780,7 +780,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setState(prev => {
         const validRules = data.filter((r: any) => 
           r && typeof r === 'object' && typeof r.domain === 'string' && 
-          (typeof r.selector === 'string' || r.jobDescription || r.jobTitle || r.companyName || r.jobLocation || r.jobPoster)
+          (typeof r.jobDescription === 'string' || r.jobDescription || r.jobTitle || r.companyName || r.jobLocation || r.jobPoster)
         ) as SiteRule[]
         
         const merged = [...prev.siteRules]

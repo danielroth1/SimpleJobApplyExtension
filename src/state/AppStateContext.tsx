@@ -49,25 +49,6 @@ const defaultState: AppState = {
   prefillNewJobs: true,
 }
 
-// Migrate old SiteRule format (single selector) to new format (multiple fields)
-function migrateSiteRules(rules: SiteRule[]): SiteRule[] {
-  return rules.map(rule => {
-    // Check if this is an old-format rule with a 'selector' field
-    const oldRule = rule as any
-    if (oldRule.jobDescription && typeof oldRule.jobDescription === 'string') {
-      // Migrate old format to new format
-      // For old rules, assume the selector was for job description
-      return {
-        domain: rule.domain,
-        jobDescription: oldRule.jobDescription,
-        description: rule.description,
-      } as SiteRule
-    }
-    // Already in new format or empty, return as-is
-    return rule
-  })
-}
-
 function normalizeLoadedState(s: Partial<AppState> | null): AppState {
   if (!s) return defaultState
   // Normalize paragraphs to ensure collapsed field exists (default to true)
@@ -116,19 +97,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         normalizedState.debugMode = settings.debugMode
         normalizedState.forceUniqueColors = settings.forceUniqueColors ?? normalizedState.forceUniqueColors
         normalizedState.prefillNewJobs = settings.prefillNewJobs ?? normalizedState.prefillNewJobs
-      }
-      if (rules && Array.isArray(rules)) {
-        // Migrate old site rules format to new format
-        const migratedRules = migrateSiteRules(rules)
-        normalizedState.siteRules = migratedRules
-        
-        // Check if migration happened (rules changed)
-        const rulesChanged = JSON.stringify(rules) !== JSON.stringify(migratedRules)
-        if (rulesChanged) {
-          console.log('[AppState] Migrated site rules from old format to new format')
-          // Save the migrated rules back to storage
-          setTimeout(() => saveSiteRules(migratedRules), 100)
-        }
       }
       setState(normalizedState)
     })

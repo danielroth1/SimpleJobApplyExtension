@@ -23,7 +23,7 @@ const STATUS_LABELS: Record<JobStatus, string> = {
 const OFFICE_OPTIONS: { value: OfficeLocation; label: string; icon: string }[] = [
   { value: 'on-site', label: 'On site', icon: '🏢' },
   { value: 'hybrid', label: 'Hybrid', icon: '🔀' },
-  { value: 'home-office', label: 'Home office', icon: '🏡' },
+  { value: 'remote', label: 'Remote', icon: '🏡' },
   { value: 'custom', label: 'Custom', icon: '✨' },
 ]
 

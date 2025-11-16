@@ -21,7 +21,7 @@ export type Paragraph = {
 
 export type JobStatus = 'open' | 'applied' | 'rejected' | 'interview' | 'accepted'
 
-export type OfficeLocation = 'hybrid' | 'on-site' | 'home-office' | 'custom'
+export type OfficeLocation = 'hybrid' | 'on-site' | 'remote' | 'custom'
 
 export type Job = {
   id: string

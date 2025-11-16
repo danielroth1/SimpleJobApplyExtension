@@ -909,6 +909,26 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     }))
   }, [])
 
+  const extractJobIdFromUrl = useCallback(async (): Promise<string | null> => {
+    const api = (window as any).browser ?? (window as any).chrome
+    if (!api?.tabs?.query) {
+      return null
+    }
+    
+    try {
+      const [tab] = await api.tabs.query({ active: true, currentWindow: true })
+      if (!tab?.url) {
+        return null
+      }
+      
+      const url = new URL(tab.url)
+      return url.searchParams.get('currentJobId')
+    } catch (e) {
+      console.error('Failed to extract job ID from URL:', e)
+      return null
+    }
+  }, [])
+
   const extractJobDataFromPage = useCallback(async (): Promise<Partial<Job> | null> => {
     const api = (window as any).browser ?? (window as any).chrome
     if (!api?.tabs?.query) {
@@ -933,6 +953,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         return null
       }
       
+      // Extract job ID from URL
+      const jobId = await extractJobIdFromUrl()
+      
       // Request extraction from content script
       return new Promise((resolve) => {
         api.tabs.sendMessage(tab.id, { 
@@ -944,14 +967,19 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
             resolve(null)
             return
           }
-          resolve(response || null)
+          // Add externalId if we extracted one
+          const result = response || null
+          if (result && jobId) {
+            result.externalId = jobId
+          }
+          resolve(result)
         })
       })
     } catch (e) {
       console.error('Extract error:', e)
       return null
     }
-  }, [state.siteRules])
+  }, [state.siteRules, extractJobIdFromUrl])
 
   const value = useMemo(() => ({
     state,
@@ -1004,8 +1032,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       loadSiteRulesFromFile,
       saveSiteRulesToFile,
       extractJobDataFromPage,
+      extractJobIdFromUrl,
     }
-  }), [state, addParagraph, addParagraphAt, updateParagraph, deleteParagraph, addKeyword, updateKeyword, removeKeyword, moveKeyword, transferKeyword, setParagraphColor, reassignParagraphColors, reorderParagraphs, addJob, updateJob, deleteJob, reorderJobs, addJobLink, removeJobLink, addPdfItem, updatePdfItem, deletePdfItem, reorderPdfItems, undo, redo, executeOperation, setJobPostingRaw, analyzeNow, generateCoverLetter, saveToFile, loadFromFile, pasteFromClipboard, analyzeCurrentPage, toggleDarkMode, toggleHighlightInCoverLetter, toggleAutoAnalyze, toggleDebugMode, toggleForceUniqueColors, togglePrefillNewJobs, highlightPageKeywords, debugPageState, addSiteRule, updateSiteRule, removeSiteRule, loadSiteRulesFromFile, saveSiteRulesToFile, extractJobDataFromPage])
+  }), [state, addParagraph, addParagraphAt, updateParagraph, deleteParagraph, addKeyword, updateKeyword, removeKeyword, moveKeyword, transferKeyword, setParagraphColor, reassignParagraphColors, reorderParagraphs, addJob, updateJob, deleteJob, reorderJobs, addJobLink, removeJobLink, addPdfItem, updatePdfItem, deletePdfItem, reorderPdfItems, undo, redo, executeOperation, setJobPostingRaw, analyzeNow, generateCoverLetter, saveToFile, loadFromFile, pasteFromClipboard, analyzeCurrentPage, toggleDarkMode, toggleHighlightInCoverLetter, toggleAutoAnalyze, toggleDebugMode, toggleForceUniqueColors, togglePrefillNewJobs, highlightPageKeywords, debugPageState, addSiteRule, updateSiteRule, removeSiteRule, loadSiteRulesFromFile, saveSiteRulesToFile, extractJobDataFromPage, extractJobIdFromUrl])
 
   return (
     <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>

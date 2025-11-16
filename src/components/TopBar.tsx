@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import { useAppState } from '@/state/AppStateContext'
 
-export default function TopBar() {
+interface TopBarProps {
+  onNavigateToJob?: (jobId: string) => void
+}
+
+export default function TopBar({ onNavigateToJob }: TopBarProps = {}) {
   const { state, actions } = useAppState()
   const [currentPageJobId, setCurrentPageJobId] = useState<string | null>(null)
   const [hasMatchingSiteRule, setHasMatchingSiteRule] = useState(false)
@@ -26,8 +30,8 @@ export default function TopBar() {
         const matchingRule = state.siteRules.find(rule => domain.includes(rule.domain))
         setHasMatchingSiteRule(!!matchingRule)
         
-        // Extract job ID from URL if present
-        const jobId = url.searchParams.get('currentJobId')
+        // Extract job ID from URL using the centralized method
+        const jobId = await actions.extractJobIdFromUrl()
         setCurrentPageJobId(jobId)
       } catch (e) {
         console.error('[TopBar] Failed to check current page:', e)
@@ -39,7 +43,7 @@ export default function TopBar() {
     checkCurrentPage()
     
     // Re-check when jobs or site rules change
-  }, [state.siteRules, state.jobs])
+  }, [state.siteRules, state.jobs, actions])
 
   // Find if a job with this external ID already exists
   const existingJob = currentPageJobId 
@@ -53,7 +57,7 @@ export default function TopBar() {
       return null
     })()
     
-    // Extract data from page
+    // Extract data from page (now includes externalId automatically)
     if (newId) {
       try {
         const data = await actions.extractJobDataFromPage()
@@ -80,13 +84,22 @@ export default function TopBar() {
       
       {hasMatchingSiteRule && (
         existingJob ? (
-          <button 
-            className="btn btn-outline-danger btn-sm" 
-            onClick={handleUnsaveJob} 
-            title="Remove this job from saved jobs"
-          >
-            🗑️ Unsave Job
-          </button>
+          <>
+            <button 
+              className="btn btn-outline-primary btn-sm" 
+              onClick={() => onNavigateToJob?.(existingJob.id)} 
+              title="Open saved job details"
+            >
+              💼 Open Job
+            </button>
+            <button 
+              className="btn btn-outline-danger btn-sm" 
+              onClick={handleUnsaveJob} 
+              title="Remove this job from saved jobs"
+            >
+              🗑️ Unsave Job
+            </button>
+          </>
         ) : (
           <button 
             className="btn btn-outline-secondary btn-sm" 

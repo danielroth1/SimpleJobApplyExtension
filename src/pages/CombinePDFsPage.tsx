@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useMemo } from 'react'
 import { PDFDocument } from 'pdf-lib'
 import { useAppState } from '../state/AppStateContext'
 import { PDFItem } from '../state/types'
@@ -312,8 +312,8 @@ export default function CombinePDFsPage() {
     }
   }, [contextMenu])
 
-  // Compression popup components
-  const ImageCompressionControls = () => (
+  // Compression popup components - memoized to prevent re-renders during slider interaction
+  const ImageCompressionControls = useMemo(() => (
     <div style={{ marginBottom: 16 }}>
       {/* <h6 style={{ margin: 0, marginBottom: 8, color: 'var(--text)', fontSize: '14px', fontWeight: '600' }}>
         🖼️ Image Compression
@@ -378,9 +378,9 @@ export default function CombinePDFsPage() {
         />
       </div>
     </div>
-  )
+  ), [imageCompressionEnabled, imageQuality, maxWidth, maxHeight])
 
-  const PDFCompressionControls = () => (
+  const PDFCompressionControls = useMemo(() => (
     <div style={{ marginBottom: 16 }}>
       <h6 style={{ margin: 0, marginBottom: 8, color: 'var(--text)', fontSize: '14px', fontWeight: '600' }}>
         📄 PDF Compression
@@ -413,10 +413,10 @@ export default function CombinePDFsPage() {
         />
       </div>
     </div>
-  )
+  ), [pdfCompressionEnabled, pdfCompressionLevel])
 
-  // Global compression popup (modal overlay like SiteRulesEditor)
-  const GlobalCompressionPopup = () => (
+  // Global compression popup (modal overlay like SiteRulesEditor) - memoized to prevent re-renders
+  const GlobalCompressionPopup = useMemo(() => (
     <div 
       style={{
         position: 'fixed',
@@ -466,7 +466,7 @@ export default function CombinePDFsPage() {
           Configure compression settings for all files. Settings will be applied when you combine the files.
         </div>
 
-        <ImageCompressionControls />
+        {ImageCompressionControls}
         
         <div style={{ borderTop: '1px solid var(--border)', margin: '16px 0' }} />
         
@@ -491,7 +491,7 @@ export default function CombinePDFsPage() {
         </div>
       </div>
     </div>
-  )
+  ), [ImageCompressionControls, saveGlobalCompressionSettings])
 
   return (
     <div className="combine-pdfs-page">
@@ -697,7 +697,7 @@ export default function CombinePDFsPage() {
               >×</button>
             </div>
 
-            <ImageCompressionControls />
+            {ImageCompressionControls}
 
             <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
               <button
@@ -719,7 +719,7 @@ export default function CombinePDFsPage() {
         </div>
       )}
 
-      {globalCompressPopup && <GlobalCompressionPopup />}
+      {globalCompressPopup && GlobalCompressionPopup}
     </div>
   )
 }

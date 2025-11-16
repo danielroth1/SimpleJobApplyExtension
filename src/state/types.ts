@@ -154,5 +154,6 @@ export type AppActions = {
   loadSiteRulesFromFile: (file: File) => Promise<void>
   saveSiteRulesToFile: (filename?: string) => Promise<void>
   extractJobDataFromPage: () => Promise<Partial<Job> | null>
+  extractJobIdFromUrl: () => Promise<string | null>
 }
 

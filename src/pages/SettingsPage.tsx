@@ -9,6 +9,61 @@ export default function SettingsPage() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         
+        {/* Dark Mode */}
+        <div 
+          className="setting-item" 
+          onClick={() => actions.toggleDarkMode()}
+          style={{ 
+            display: 'flex', 
+            flexDirection: 'column',
+            gap: '8px',
+            padding: '16px',
+            background: 'var(--panel-bg)',
+            border: '1px solid var(--border)',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = 'var(--primary)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'var(--border)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontWeight: '500', color: 'var(--text)', fontSize: '15px', marginBottom: '4px' }}>
+                Theme
+              </div>
+              <p style={{ 
+                margin: 0,
+                fontSize: '13px', 
+                color: 'var(--muted)',
+                lineHeight: '1.5'
+              }}>
+                Switch between light and dark theme
+              </p>
+            </div>
+            <div
+              style={{
+                padding: '8px 16px',
+                border: '1px solid var(--border)',
+                borderRadius: '6px',
+                background: 'var(--panel-bg)',
+                color: 'var(--text)',
+                fontSize: '20px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                pointerEvents: 'none',
+              }}
+            >
+              {state.darkMode ? String.fromCodePoint(0x1F319) : String.fromCodePoint(0x2600, 0xFE0F)}
+            </div>
+          </div>
+        </div>
+
         {/* Prefill New Jobs */}
         <div className="setting-item" style={{ 
           display: 'flex', 
@@ -170,47 +225,6 @@ export default function SettingsPage() {
             lineHeight: '1.5'
           }}>
             Ensure each paragraph has a unique color for better distinction
-          </p>
-        </div>
-
-        {/* Dark Mode */}
-        <div className="setting-item" style={{ 
-          display: 'flex', 
-          flexDirection: 'column',
-          gap: '8px',
-          padding: '16px',
-          background: 'var(--panel-bg)',
-          border: '1px solid var(--border)',
-          borderRadius: '8px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <input
-              type="checkbox"
-              id="dark-mode"
-              checked={state.darkMode}
-              onChange={() => actions.toggleDarkMode()}
-              style={{ cursor: 'pointer', width: '18px', height: '18px' }}
-            />
-            <label 
-              htmlFor="dark-mode" 
-              style={{ 
-                cursor: 'pointer', 
-                fontWeight: '500', 
-                color: 'var(--text)',
-                fontSize: '15px'
-              }}
-            >
-              Dark mode
-            </label>
-          </div>
-          <p style={{ 
-            margin: 0, 
-            marginLeft: '30px',
-            fontSize: '13px', 
-            color: 'var(--muted)',
-            lineHeight: '1.5'
-          }}>
-            Use dark theme for the interface
           </p>
         </div>
 

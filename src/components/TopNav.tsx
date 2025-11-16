@@ -12,9 +12,10 @@ interface TopNavProps {
   // Job detail editing support
   editableTitle?: boolean
   selectedJobId?: string | null
+  onNavigateToJob?: (jobId: string) => void
 }
 
-export default function TopNav({ currentPage, onNavigate, pageTitle, showTopBarControls, onBack, editableTitle, selectedJobId }: TopNavProps) {
+export default function TopNav({ currentPage, onNavigate, pageTitle, showTopBarControls, onBack, editableTitle, selectedJobId, onNavigateToJob }: TopNavProps) {
   const { state, actions } = useAppState()
   const [menuOpen, setMenuOpen] = useState(false)
   const [showSiteRules, setShowSiteRules] = useState(false)
@@ -107,7 +108,7 @@ export default function TopNav({ currentPage, onNavigate, pageTitle, showTopBarC
           <span className="burger-icon">☰</span>
         </button>
         
-        {showTopBarControls && <TopBar />}
+        {showTopBarControls && <TopBar onNavigateToJob={onNavigateToJob} />}
         {effectiveTitle && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {onBack && (
@@ -163,7 +164,7 @@ export default function TopNav({ currentPage, onNavigate, pageTitle, showTopBarC
             title="Manage your job applications"
           >
             <span className="burger-menu-icon">💼</span>
-            <span>Jobs</span>
+            <span>Saved Jobs</span>
           </button>
           
           <button 

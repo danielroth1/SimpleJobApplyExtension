@@ -20,6 +20,7 @@ import {
 export default function ParagraphGroups() {
   const { state, actions } = useAppState()
   const [insertionIndex, setInsertionIndex] = useState<number | null>(null)
+  const [searchText, setSearchText] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
 
   const updateInsertionIndexFromEvent = useCallback((e: React.MouseEvent) => {
@@ -103,17 +104,27 @@ export default function ParagraphGroups() {
   const allCollapsed = state.paragraphs.every(p => p.collapsed)
   const allExpanded = state.paragraphs.every(p => !p.collapsed)
 
+  // Filter paragraphs based on search text
+  const filteredParagraphs = searchText.trim() 
+    ? state.paragraphs.filter(p => 
+        p.keywords.some(kw => kw.text.toLowerCase().includes(searchText.toLowerCase()))
+      )
+    : state.paragraphs
+
   return (
     <div className="content">
-      {/* Top bar with collapse/expand all button */}
+      {/* Top bar with search and collapse/expand all button */}
       <div style={{ 
         display: 'flex', 
-        justifyContent: 'flex-start', 
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: '8px',
         marginBottom: '6px',
         paddingBottom: '8px',
         marginLeft: '4px',
         borderBottom: '1px solid var(--border)'
       }}>
+
         <button 
           className="btn btn-outline-secondary btn-sm" 
           onClick={allExpanded ? handleCollapseAll : handleExpandAll}
@@ -121,6 +132,45 @@ export default function ParagraphGroups() {
         >
           {allExpanded ? '▲ Collapse All' : '▼ Expand All'}
         </button>
+        
+        <div style={{ display: 'flex', gap: '4px', flex: 1 }}>
+          <input
+            type="text"
+            placeholder="Search keywords..."
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                // Trigger filter (already automatic via state)
+              } else if (e.key === 'Escape') {
+                setSearchText('')
+              }
+            }}
+            style={{
+              flex: 1,
+              padding: '4px 8px',
+              fontSize: '13px',
+              border: '1px solid var(--border)',
+              borderRadius: '4px',
+              background: 'var(--input-bg)',
+              color: 'var(--text)',
+            }}
+          />
+          <button 
+            className="btn btn-outline-secondary btn-sm"
+            onClick={() => {
+              // Search button - filter is automatic, but can clear if clicked when has text
+              if (searchText.trim()) {
+                // Already filtering, clicking again clears
+                setSearchText('')
+              }
+            }}
+            title={searchText.trim() ? 'Clear search' : 'Filter paragraphs by keyword'}
+          >
+            {searchText.trim() ? '✕' : '🔍'}
+          </button>
+        </div>
+        
       </div>
       
       <DndContext
@@ -129,7 +179,7 @@ export default function ParagraphGroups() {
         onDragEnd={handleDragEnd}
       >
         <SortableContext
-          items={state.paragraphs.map(p => p.id)}
+          items={filteredParagraphs.map(p => p.id)}
           strategy={verticalListSortingStrategy}
         >
           <div
@@ -144,54 +194,58 @@ export default function ParagraphGroups() {
             }}
             style={{ position: 'relative' }}
           >
-            {state.paragraphs.map((p, i) => (
-              <React.Fragment key={p.id}>
-                {/* Insertion line before this item */}
-                {insertionIndex === i && (
-                  <div 
-                    className="insertion-line" 
-                    style={{ 
-                      position: 'absolute', 
-                      transform: 'translateY(-7px)', /* compensate gap between paragraphs */
-                      left: 0, 
-                      right: 0,
-                      height: '3px', 
-                      background: state.darkMode ? 'hsl(210 100% 60%)' : 'hsl(210 100% 50%)', 
-                      zIndex: 100,
-                      top: i === 0 ? '4px' : 'undefined',
-                      pointerEvents: 'none'
-                    }}
-                  >
+            {filteredParagraphs.map((p, i) => {
+              // Find original index for color assignment
+              const originalIndex = state.paragraphs.findIndex(orig => orig.id === p.id)
+              return (
+                <React.Fragment key={p.id}>
+                  {/* Insertion line before this item */}
+                  {insertionIndex === i && (
                     <div 
-                      className="insertion-plus" 
+                      className="insertion-line" 
                       style={{ 
                         position: 'absolute', 
-                        top: '50%', 
-                        left: '50%', 
-                        transform: 'translate(-50%, -50%)', 
-                        width: 26, 
-                        height: 26, 
-                        borderRadius: '50%', 
+                        transform: 'translateY(-7px)', /* compensate gap between paragraphs */
+                        left: 0, 
+                        right: 0,
+                        height: '3px', 
                         background: state.darkMode ? 'hsl(210 100% 60%)' : 'hsl(210 100% 50%)', 
-                        color: 'white',
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'center', 
-                        fontSize: 20, 
-                        cursor: 'pointer',
-                        pointerEvents: 'all',
-                        fontWeight: 'bold',
-                        lineHeight: '1'
+                        zIndex: 100,
+                        top: i === 0 ? '4px' : 'undefined',
+                        pointerEvents: 'none'
                       }}
-                    >⊕</div>
-                  </div>
-                )}
-                <ParagraphItem 
-                  paragraph={p} 
-                  colorIndex={i}
-                />
-              </React.Fragment>
-            ))}
+                    >
+                      <div 
+                        className="insertion-plus" 
+                        style={{ 
+                          position: 'absolute', 
+                          top: '50%', 
+                          left: '50%', 
+                          transform: 'translate(-50%, -50%)', 
+                          width: 26, 
+                          height: 26, 
+                          borderRadius: '50%', 
+                          background: state.darkMode ? 'hsl(210 100% 60%)' : 'hsl(210 100% 50%)', 
+                          color: 'white',
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center', 
+                          fontSize: 20, 
+                          cursor: 'pointer',
+                          pointerEvents: 'all',
+                          fontWeight: 'bold',
+                          lineHeight: '1'
+                        }}
+                      >⊕</div>
+                    </div>
+                  )}
+                  <ParagraphItem 
+                    paragraph={p} 
+                    colorIndex={originalIndex}
+                  />
+                </React.Fragment>
+              )
+            })}
           </div>
         </SortableContext>
       </DndContext>

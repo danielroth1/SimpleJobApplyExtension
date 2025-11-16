@@ -167,7 +167,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           }
         }
         
-        // Extract labels (location type indicators like "hybrid", "remote", etc.)
+        // Extract labels (location type indicators like "hybrid", "remote", etc.) and office location
         if (siteRule.labels) {
           const labelsEl = document.querySelector(siteRule.labels)
           if (labelsEl) {
@@ -176,16 +176,38 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
               // Extract location type from labels text
               const lowerText = labelsText.toLowerCase()
               if (lowerText.includes('hybrid')) {
-                jobData.location = 'Hybrid'
+                jobData.officeLocation = 'hybrid'
               } else if (lowerText.includes('remote')) {
-                jobData.location = 'Remote'
+                jobData.officeLocation = 'remote'
               } else if (lowerText.includes('on site') || lowerText.includes('on-site') || lowerText.includes('vor ort')) {
-                jobData.location = 'On site'
+                jobData.officeLocation = 'on-site'
               } else {
                 // If no match, use the raw text
-                jobData.location = labelsText
+                jobData.officeLocation = labelsText
               }
             }
+          }
+        }
+        
+        // Extract office location from LinkedIn-specific structure
+        if (siteRule.domain === 'linkedin.com') {
+          try {
+            const topCardContainer = document.querySelector('.job-details-jobs-unified-top-card__primary-description-container')
+            if (topCardContainer) {
+              const tertiaryDesc = topCardContainer.querySelector('.job-details-jobs-unified-top-card__tertiary-description-container')
+              if (tertiaryDesc) {
+                // Find the first tvm__text element which contains the location
+                const locationSpan = tertiaryDesc.querySelector('.tvm__text.tvm__text--low-emphasis')
+                if (locationSpan) {
+                  const locationText = locationSpan.innerText?.trim()
+                  if (locationText && !locationText.includes('·') && !locationText.includes('Erneut') && !locationText.includes('Kandidat')) {
+                    jobData.location = locationText
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            console.warn('[ContentScript] Failed to extract office location:', e)
           }
         }
         

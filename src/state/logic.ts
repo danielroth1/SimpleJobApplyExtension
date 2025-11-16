@@ -159,7 +159,7 @@ export function highlightJobPosting(raw: string, paragraphs: Paragraph[], darkMo
   return { html, matched }
 }
 
-export function generateCoverLetterHTML(paragraphs: Paragraph[], highlightEnabled: boolean = false, darkMode: boolean = false): string {
+export function generateCoverLetterHTML(paragraphs: Paragraph[], highlightEnabled: boolean = false, darkMode: boolean = false, recruiterName?: string): string {
   // Helper: strip trailing empty <p></p> or <p><br></p> tags
   const stripTrailingEmptyPs = (html: string): string => {
     return html.replace(/(?:\s*<p[^>]*>(?:\s*|<br\s*\/?>)*<\/p>\s*)+$/gi, '')
@@ -301,7 +301,27 @@ export function generateCoverLetterHTML(paragraphs: Paragraph[], highlightEnable
     }
   }
 
-  return outputBlocks.join('')
+  let result = outputBlocks.join('')
+  
+  // Replace <recruiter> tag with actual recruiter name if provided
+  if (recruiterName) {
+    result = result.replace(/<recruiter>/gi, recruiterName)
+  }
+  
+  return result
 }
 
-export function cloneState<T>(obj: T): T { return JSON.parse(JSON.stringify(obj)) }
+// Clone state while preserving Operation class instances in undo/redo stacks
+export function cloneState<T>(obj: T): T {
+  if (obj && typeof obj === 'object' && 'undoStack' in obj && 'redoStack' in obj) {
+    // This is an AppState object - preserve the operation stacks
+    const state = obj as any
+    const { undoStack, redoStack, ...rest } = state
+    const cloned = JSON.parse(JSON.stringify(rest))
+    // Preserve the original operation arrays (don't clone them)
+    cloned.undoStack = undoStack
+    cloned.redoStack = redoStack
+    return cloned as T
+  }
+  return JSON.parse(JSON.stringify(obj))
+}

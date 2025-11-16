@@ -85,6 +85,28 @@ export default function RichTextEditor({
           class: 'tiptap-link',
         },
       }),
+      Extension.create({
+        name: 'customKeyboardShortcuts',
+        addKeyboardShortcuts() {
+          return {
+            'Mod-k': () => {
+              // Trigger link insertion
+              const previousUrl = this.editor.getAttributes('link').href
+              const url = window.prompt('URL', previousUrl)
+              
+              if (url === null) return true
+              
+              if (url === '') {
+                this.editor.chain().focus().extendMarkRange('link').unsetLink().run()
+                return true
+              }
+              
+              this.editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
+              return true
+            },
+          }
+        },
+      }),
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -207,7 +229,7 @@ export default function RichTextEditor({
           </button>
           <button 
             onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleStrike().run() }} 
-            title="Strikethrough"
+            title="Strikethrough (Ctrl+Shift+X)"
             className={`toolbar-btn ${editor.isActive('strike') ? 'is-active' : ''}`}
             style={toolbarButtonStyle}
           >
@@ -230,7 +252,7 @@ export default function RichTextEditor({
           <div style={{ width: '1px', background: 'var(--border)', margin: '0 2px' }} />
           <button 
             onMouseDown={(e) => { e.preventDefault(); handleInsertLink() }} 
-            title="Insert/Edit link"
+            title="Insert/Edit link (Ctrl+K)"
             className={`toolbar-btn ${editor.isActive('link') ? 'is-active' : ''}`}
             style={toolbarButtonStyle}
           >

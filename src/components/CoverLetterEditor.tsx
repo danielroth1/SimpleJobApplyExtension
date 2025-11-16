@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useRef } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useAppState } from '@/state/AppStateContext'
 import { generateCoverLetterHTML } from '@/state/logic'
 
 export default function CoverLetterEditor() {
   const { state, actions } = useAppState()
   const editorRef = useRef<HTMLDivElement>(null)
+  const [copySuccess, setCopySuccess] = useState(false)
   // Only apply state updates when explicitly requested (e.g. clicking Update)
   const applyNextStateHTML = useRef(false)
   
@@ -27,19 +28,43 @@ export default function CoverLetterEditor() {
 
   const handleUpdate = useCallback(() => {
     // Compute and set state (for persistence), then explicitly apply from state once it updates
-    const html = generateCoverLetterHTML(state.paragraphs, state.highlightInCoverLetter, state.darkMode)
+    const html = generateCoverLetterHTML(state.paragraphs, state.highlightInCoverLetter, state.darkMode, state.currentRecruiterName)
     applyNextStateHTML.current = true
     // Reuse existing action to keep storage in sync
     actions.generateCoverLetter()
     // As an immediate UX improvement, also apply to DOM directly to avoid visible delay
     if (editorRef.current) editorRef.current.innerHTML = html
-  }, [actions, state.paragraphs, state.highlightInCoverLetter, state.darkMode])
+  }, [actions, state.paragraphs, state.highlightInCoverLetter, state.darkMode, state.currentRecruiterName])
+
+  const handleCopyToClipboard = useCallback(async () => {
+    if (!editorRef.current) return
+    try {
+      // Get the text content (without HTML tags)
+      const text = editorRef.current.innerText
+      await navigator.clipboard.writeText(text)
+      setCopySuccess(true)
+      setTimeout(() => setCopySuccess(false), 2000)
+    } catch (e) {
+      console.error('Failed to copy to clipboard:', e)
+    }
+  }, [])
   
   return (
     <div className="panel">
       <h3>
         Cover Letter
-  <button className="toggle" style={{ float: 'right' }} onClick={handleUpdate} title="Update Cover Letter">🔄</button>
+        <div style={{ float: 'right', display: 'flex', gap: '4px', alignItems: 'center' }}>
+          {copySuccess && <span style={{ fontSize: '12px', color: 'var(--success, #10b981)', marginRight: '4px' }}>✓ Copied!</span>}
+          <button 
+            className="toggle" 
+            onClick={handleCopyToClipboard} 
+            title="Copy cover letter to clipboard"
+            style={{ fontSize: '16px' }}
+          >
+            📋
+          </button>
+          <button className="toggle" onClick={handleUpdate} title="Update Cover Letter">🔄</button>
+        </div>
       </h3>
       <div className="content">
         <div

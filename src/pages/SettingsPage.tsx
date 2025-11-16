@@ -6,7 +6,6 @@ export default function SettingsPage() {
 
   return (
     <div className="jobs-page" style={{ padding: '20px' }}>
-      <h2 style={{ marginTop: 0, marginBottom: '24px', color: 'var(--text)' }}>Settings</h2>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         

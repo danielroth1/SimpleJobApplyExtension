@@ -1,7 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { AppActions, AppState, Paragraph, KeywordWithOptions, SiteRule, Job, PDFItem } from './types'
+import { AppActions, AppState, Paragraph, KeywordWithOptions, SiteRule, Job, PDFItem, Operation } from './types'
 import { cloneState, generateCoverLetterHTML, highlightJobPosting, hslForIndex, getNextAvailableColorIndex } from './logic'
 import { loadStateFromStorage, saveStateToStorage, downloadJson, readJsonFile, getPageText, getPageHtml, downloadFile, readClipboardText, saveSettings, loadSettings, type AppSettings, saveSiteRules, loadSiteRules } from '@/utils/storage'
+import { CreateParagraphOperation, RemoveParagraphOperation, ReorderParagraphsOperation, AddKeywordOperation, RemoveKeywordOperation, AddJobLinkOperation, RemoveJobLinkOperation } from './operations'
 
 const AppStateContext = createContext<{ state: AppState, actions: AppActions } | null>(null)
 
@@ -47,6 +48,9 @@ const defaultState: AppState = {
   ],
   forceUniqueColors: true,
   prefillNewJobs: true,
+  undoStack: [],
+  redoStack: [],
+  currentRecruiterName: undefined,
 }
 
 function normalizeLoadedState(s: Partial<AppState> | null): AppState {
@@ -64,10 +68,19 @@ function normalizeLoadedState(s: Partial<AppState> | null): AppState {
         return { ...p, collapsed: p.collapsed ?? true, keywords, color: p.color }
       })
     : defaultState.paragraphs
+  
+  // Normalize pdfItems to ensure type field exists
+  const pdfItems = Array.isArray(s.pdfItems)
+    ? s.pdfItems.map(item => ({
+        ...item,
+        type: item.type || 'pdf' as 'pdf' | 'image', // Default to PDF for legacy items
+      }))
+    : defaultState.pdfItems
+  
   return {
     paragraphs,
     jobs: Array.isArray(s.jobs) ? s.jobs : defaultState.jobs,
-    pdfItems: Array.isArray(s.pdfItems) ? s.pdfItems : defaultState.pdfItems,
+    pdfItems,
     jobPostingRaw: s.jobPostingRaw ?? defaultState.jobPostingRaw,
     jobPostingHTML: s.jobPostingHTML ?? defaultState.jobPostingHTML,
     coverLetterHTML: s.coverLetterHTML ?? defaultState.coverLetterHTML,
@@ -79,6 +92,9 @@ function normalizeLoadedState(s: Partial<AppState> | null): AppState {
     siteRules: s.siteRules ?? defaultState.siteRules,
     forceUniqueColors: s.forceUniqueColors ?? defaultState.forceUniqueColors,
     prefillNewJobs: s.prefillNewJobs ?? defaultState.prefillNewJobs,
+    undoStack: [], // Don't persist undo/redo stacks
+    redoStack: [],
+    currentRecruiterName: s.currentRecruiterName,
   }
 }
 
@@ -98,6 +114,15 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         normalizedState.forceUniqueColors = settings.forceUniqueColors ?? normalizedState.forceUniqueColors
         normalizedState.prefillNewJobs = settings.prefillNewJobs ?? normalizedState.prefillNewJobs
       }
+      
+      // Check if default siteRules are missing and add them
+      const defaultDomains = defaultState.siteRules.map(r => r.domain)
+      const existingDomains = normalizedState.siteRules.map(r => r.domain)
+      const missingRules = defaultState.siteRules.filter(r => !existingDomains.includes(r.domain))
+      if (missingRules.length > 0) {
+        normalizedState.siteRules = [...normalizedState.siteRules, ...missingRules]
+      }
+      
       setState(normalizedState)
     })
   }, [])
@@ -141,18 +166,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, [state.forceUniqueColors, state.paragraphs.length])
 
   const addParagraph = useCallback(() => {
-    setState(prev => ({
-      ...prev,
-      paragraphs: [...prev.paragraphs, { id: uuid(), html: '<p></p>', keywords: [], noLineBreak: false, autoInclude: false, included: false, collapsed: false, color: undefined }]
-    }))
-  }, [])
+    const operation = new CreateParagraphOperation(state.paragraphs.length)
+    executeOperation(operation)
+  }, [state.paragraphs.length])
 
   const addParagraphAt = useCallback((index: number) => {
-    setState(prev => {
-      const next = cloneState(prev)
-      next.paragraphs.splice(index, 0, { id: uuid(), html: '<p></p>', keywords: [], noLineBreak: false, autoInclude: false, included: false, collapsed: false, color: undefined })
-      return next
-    })
+    const operation = new CreateParagraphOperation(index)
+    executeOperation(operation)
   }, [])
 
   const updateParagraph = useCallback((paragraphId: string, patch: Partial<Paragraph> | ((prev: Paragraph) => Partial<Paragraph>)) => {
@@ -167,10 +187,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const deleteParagraph = useCallback((paragraphId: string) => {
-    setState(prev => ({
-      ...prev,
-      paragraphs: prev.paragraphs.filter(p => p.id !== paragraphId)
-    }))
+    const operation = new RemoveParagraphOperation(paragraphId)
+    executeOperation(operation)
   }, [])
 
   // Add a keyword to a paragraph without auto-assigning colors.
@@ -239,19 +257,20 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   // Initialize the actual implementations after dependencies are declared
   useEffect(() => {
     addKeywordRef.current = (paragraphId: string, keyword: string) => {
-      let needsReassign = false
+      const operation = new AddKeywordOperation(paragraphId, keyword)
       setState(prev => {
-        const next = cloneState(prev)
-        const p = next.paragraphs.find(p => p.id === paragraphId)
-        if (!p) return prev
-        const existingTexts = new Set(p.keywords.map(k => k.text))
-        if (existingTexts.has(keyword)) return prev
-        const wasEmpty = p.keywords.length === 0
-        p.keywords = [...p.keywords, { text: keyword, matchWholeWord: false, matchCase: false }]
-        if (wasEmpty && p.keywords.length === 1) needsReassign = true
-        return next
+        // Check if keyword already exists
+        const p = prev.paragraphs.find(p => p.id === paragraphId)
+        if (!p || p.keywords.some(k => k.text === keyword)) return prev
+        
+        const next = operation.do(prev)
+        return {
+          ...next,
+          undoStack: [...prev.undoStack, operation],
+          redoStack: [],
+        }
       })
-      if (needsReassign) setTimeout(() => { try { reassignParagraphColors() } catch {} }, 0)
+      setTimeout(() => { try { reassignParagraphColors() } catch {} }, 0)
     }
     moveKeywordRef.current = (paragraphId: string, fromIndex: number, toIndex: number) => {
       setState(prev => {
@@ -388,33 +407,86 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const removeKeyword = useCallback((paragraphId: string, keyword: string) => {
-    let needsReassign = false
-    setState(prev => {
-      const next = cloneState(prev)
-      const p = next.paragraphs.find(p => p.id === paragraphId)
-      if (!p) return prev
-      p.keywords = p.keywords.filter(k => k.text !== keyword)
-      if (p.keywords.length === 0 && !p.userPickedColor) {
-        p.color = undefined
-        needsReassign = true
-      }
-      return next
-    })
-    if (needsReassign) {
-      setTimeout(() => {
-        try { reassignParagraphColors() } catch {}
-      }, 0)
-    }
+    const operation = new RemoveKeywordOperation(paragraphId, keyword)
+    executeOperation(operation)
+    // Trigger reassignment after state update
+    setTimeout(() => {
+      try { reassignParagraphColors() } catch {}
+    }, 0)
   }, [reassignParagraphColors])
 
   const reorderParagraphs = useCallback((fromIndex: number, toIndex: number) => {
+    const operation = new ReorderParagraphsOperation(fromIndex, toIndex)
+    executeOperation(operation)
+  }, [])
+
+  // Undo/Redo system
+  const executeOperation = useCallback((operation: Operation) => {
     setState(prev => {
-      const next = cloneState(prev)
-      const [moved] = next.paragraphs.splice(fromIndex, 1)
-      next.paragraphs.splice(toIndex, 0, moved)
-      return next
+      const next = operation.do(prev)
+      return {
+        ...next,
+        undoStack: [...prev.undoStack, operation],
+        redoStack: [], // Clear redo stack when new operation is executed
+      }
     })
   }, [])
+
+  const undo = useCallback(() => {
+    setState(prev => {
+      if (prev.undoStack.length === 0) return prev
+      const operation = prev.undoStack[prev.undoStack.length - 1]
+      // Defensive check: if operation lost its methods (from serialization), skip it
+      if (!operation || typeof operation.undo !== 'function') {
+        console.warn('Invalid operation in undo stack, clearing stacks')
+        return { ...prev, undoStack: [], redoStack: [] }
+      }
+      const next = operation.undo(prev)
+      return {
+        ...next,
+        undoStack: prev.undoStack.slice(0, -1),
+        redoStack: [...prev.redoStack, operation],
+      }
+    })
+  }, [])
+
+  const redo = useCallback(() => {
+    setState(prev => {
+      if (prev.redoStack.length === 0) return prev
+      const operation = prev.redoStack[prev.redoStack.length - 1]
+      // Defensive check: if operation lost its methods (from serialization), skip it
+      if (!operation || typeof operation.do !== 'function') {
+        console.warn('Invalid operation in redo stack, clearing stacks')
+        return { ...prev, undoStack: [], redoStack: [] }
+      }
+      const next = operation.do(prev)
+      return {
+        ...next,
+        undoStack: [...prev.undoStack, operation],
+        redoStack: prev.redoStack.slice(0, -1),
+      }
+    })
+  }, [])
+
+  // Keyboard shortcuts for undo/redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+Z or Cmd+Z for undo
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        undo()
+      }
+      // Ctrl+Y or Cmd+Shift+Z for redo
+      else if (((e.ctrlKey || e.metaKey) && e.key === 'y') || 
+               ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'z')) {
+        e.preventDefault()
+        redo()
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [undo, redo])
 
   const setJobPostingRaw = useCallback((raw: string) => {
     setState(prev => ({ ...prev, jobPostingRaw: raw }))
@@ -508,7 +580,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const generateCoverLetter = useCallback(() => {
-    setState(prev => ({ ...prev, coverLetterHTML: generateCoverLetterHTML(prev.paragraphs, prev.highlightInCoverLetter, prev.darkMode) }))
+    setState(prev => ({ ...prev, coverLetterHTML: generateCoverLetterHTML(prev.paragraphs, prev.highlightInCoverLetter, prev.darkMode, prev.currentRecruiterName) }))
   }, [])
 
   // Job actions
@@ -571,23 +643,33 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     })
   }, [])
 
+  const addJobLink = useCallback((jobId: string, url: string, previewText?: string) => {
+    const operation = new AddJobLinkOperation(jobId, url, previewText)
+    executeOperation(operation)
+  }, [])
+
+  const removeJobLink = useCallback((jobId: string, linkId: string) => {
+    const operation = new RemoveJobLinkOperation(jobId, linkId)
+    executeOperation(operation)
+  }, [])
+
   // PDF actions
-  const addPdfItem = useCallback((fileName: string, dataUrl: string) => {
+  const addPdfItem = useCallback((fileName: string, dataUrl: string, type: 'pdf' | 'image') => {
     const newPdf: PDFItem = {
       id: uuid(),
       fileName,
       dataUrl,
+      type,
     }
     setState(prev => ({ ...prev, pdfItems: [...prev.pdfItems, newPdf] }))
   }, [])
 
-  const updatePdfItem = useCallback((pdfId: string, fileName: string, dataUrl: string) => {
+  const updatePdfItem = useCallback((pdfId: string, updates: Partial<PDFItem>) => {
     setState(prev => {
       const next = cloneState(prev)
       const pdf = next.pdfItems.find(p => p.id === pdfId)
       if (!pdf) return prev
-      pdf.fileName = fileName
-      pdf.dataUrl = dataUrl
+      Object.assign(pdf, updates)
       return next
     })
   }, [])
@@ -652,6 +734,34 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     const text = await getPageText(state.siteRules)
     if (text) {
       setJobPostingRaw(text)
+      
+      // Also try to extract recruiter name from the page
+      try {
+        const api = (window as any).browser ?? (window as any).chrome
+        if (api?.tabs?.query) {
+          const [tab] = await api.tabs.query({ active: true, currentWindow: true })
+          if (tab?.id && tab.url) {
+            const url = new URL(tab.url)
+            const domain = url.hostname.replace(/^www\./, '')
+            const rule = state.siteRules.find(r => domain.includes(r.domain))
+            
+            if (rule) {
+              const response = await new Promise<any>((resolve) => {
+                api.tabs.sendMessage(tab.id, { type: 'EXTRACT_JOB_DATA', siteRule: rule }, (res: any) => {
+                  resolve(res || null)
+                })
+              })
+              
+              if (response?.recruiter) {
+                setState(prev => ({ ...prev, currentRecruiterName: response.recruiter }))
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Failed to extract recruiter name:', e)
+      }
+      
       setTimeout(() => analyzeNow(), 0)
     }
   }, [setJobPostingRaw, analyzeNow, state.siteRules])
@@ -863,10 +973,15 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       deleteJob,
       reorderJobs,
   addJobAndGetId,
+      addJobLink,
+      removeJobLink,
       addPdfItem,
       updatePdfItem,
       deletePdfItem,
       reorderPdfItems,
+      undo,
+      redo,
+      executeOperation,
       setJobPostingRaw,
       analyzeNow,
       generateCoverLetter,
@@ -890,7 +1005,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       saveSiteRulesToFile,
       extractJobDataFromPage,
     }
-  }), [state, addParagraph, addParagraphAt, updateParagraph, deleteParagraph, addKeyword, updateKeyword, removeKeyword, moveKeyword, transferKeyword, setParagraphColor, reassignParagraphColors, reorderParagraphs, addJob, updateJob, deleteJob, reorderJobs, addPdfItem, updatePdfItem, deletePdfItem, reorderPdfItems, setJobPostingRaw, analyzeNow, generateCoverLetter, saveToFile, loadFromFile, pasteFromClipboard, analyzeCurrentPage, toggleDarkMode, toggleHighlightInCoverLetter, toggleAutoAnalyze, toggleDebugMode, toggleForceUniqueColors, togglePrefillNewJobs, highlightPageKeywords, debugPageState, addSiteRule, updateSiteRule, removeSiteRule, loadSiteRulesFromFile, saveSiteRulesToFile, extractJobDataFromPage])
+  }), [state, addParagraph, addParagraphAt, updateParagraph, deleteParagraph, addKeyword, updateKeyword, removeKeyword, moveKeyword, transferKeyword, setParagraphColor, reassignParagraphColors, reorderParagraphs, addJob, updateJob, deleteJob, reorderJobs, addJobLink, removeJobLink, addPdfItem, updatePdfItem, deletePdfItem, reorderPdfItems, undo, redo, executeOperation, setJobPostingRaw, analyzeNow, generateCoverLetter, saveToFile, loadFromFile, pasteFromClipboard, analyzeCurrentPage, toggleDarkMode, toggleHighlightInCoverLetter, toggleAutoAnalyze, toggleDebugMode, toggleForceUniqueColors, togglePrefillNewJobs, highlightPageKeywords, debugPageState, addSiteRule, updateSiteRule, removeSiteRule, loadSiteRulesFromFile, saveSiteRulesToFile, extractJobDataFromPage])
 
   return (
     <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>

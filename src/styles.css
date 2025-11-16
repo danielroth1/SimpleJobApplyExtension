@@ -109,6 +109,21 @@ body.dark-mode .form-control {
   color: var(--text);
 }
 
+/* Explicit placeholder styling for extension context */
+.form-control::placeholder,
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.6;
+}
+
+body.dark-mode .form-control::placeholder,
+body.dark-mode input::placeholder,
+body.dark-mode textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.6;
+}
+
 /* Top bar */
 .topbar {
   display: flex;
@@ -525,6 +540,11 @@ body.dark-mode .form-control {
   flex: 1;
   overflow: auto;
   padding-bottom: 20px;
+}
+
+.page-content.no-scroll {
+  overflow: hidden;
+  padding-bottom: 0;
 }
 
 /* Jobs page */

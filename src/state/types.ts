@@ -4,6 +4,13 @@ export type KeywordWithOptions = {
   matchCase: boolean
 }
 
+// Undo/Redo operation interface
+export interface Operation {
+  do(state: AppState): AppState
+  undo(state: AppState): AppState
+  description: string
+}
+
 export type Paragraph = {
   id: string
   html: string
@@ -23,6 +30,12 @@ export type JobStatus = 'open' | 'applied' | 'rejected' | 'interview' | 'accepte
 
 export type OfficeLocation = 'hybrid' | 'on-site' | 'remote' | 'custom'
 
+export type JobLink = {
+  id: string
+  url: string
+  previewText?: string
+}
+
 export type Job = {
   id: string
   title: string
@@ -32,6 +45,7 @@ export type Job = {
   officeLocationCustom?: string
   description: string
   link: string
+  links?: JobLink[] // Multiple links support
   recruiter?: string
   externalId?: string // Job ID from external site (e.g., LinkedIn job ID from URL)
   status: JobStatus
@@ -42,7 +56,16 @@ export type Job = {
 export type PDFItem = {
   id: string
   fileName: string
-  dataUrl: string // Base64 encoded PDF for persistence
+  dataUrl: string // Base64 encoded PDF or image for persistence
+  type: 'pdf' | 'image' // Track file type
+  // Compression settings for images
+  imageCompressionEnabled?: boolean
+  imageQuality?: number // 0.1 to 1.0
+  maxWidth?: number
+  maxHeight?: number
+  // Compression settings for PDFs
+  pdfCompressionEnabled?: boolean
+  pdfCompressionLevel?: number // 0 to 3 (0 = none, 1 = low, 2 = medium, 3 = high)
 }
 
 export type SiteRule = {
@@ -71,6 +94,11 @@ export type AppState = {
   // Settings
   forceUniqueColors: boolean
   prefillNewJobs: boolean
+  // Undo/Redo
+  undoStack: Operation[]
+  redoStack: Operation[]
+  // Current job posting metadata
+  currentRecruiterName?: string
 }
 
 export type AppActions = {
@@ -92,11 +120,17 @@ export type AppActions = {
   updateJob: (jobId: string, patch: Partial<Job>) => void
   deleteJob: (jobId: string) => void
   reorderJobs: (fromIndex: number, toIndex: number) => void
+  addJobLink: (jobId: string, url: string, previewText?: string) => void
+  removeJobLink: (jobId: string, linkId: string) => void
   // PDF actions
-  addPdfItem: (fileName: string, dataUrl: string) => void
-  updatePdfItem: (pdfId: string, fileName: string, dataUrl: string) => void
+  addPdfItem: (fileName: string, dataUrl: string, type: 'pdf' | 'image') => void
+  updatePdfItem: (pdfId: string, updates: Partial<PDFItem>) => void
   deletePdfItem: (pdfId: string) => void
   reorderPdfItems: (fromIndex: number, toIndex: number) => void
+  // Undo/Redo actions
+  undo: () => void
+  redo: () => void
+  executeOperation: (operation: Operation) => void
   // Other actions
   setJobPostingRaw: (raw: string) => void
   analyzeNow: () => void

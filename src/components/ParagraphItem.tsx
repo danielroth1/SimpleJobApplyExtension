@@ -231,7 +231,7 @@ export default function ParagraphItem({ paragraph, colorIndex }: { paragraph: Pa
                   const parts = keywordInput.split(',').map(s => s.trim()).filter(Boolean)
                   parts.forEach(k => actions.addKeyword(paragraph.id, k))
                   setKeywordInput('')
-                  setShowKeywordInput(false)
+                  // Keep input visible and focused for rapid entry
                   // Re-analyze after adding keywords
                   setTimeout(() => actions.analyzeNow(), 50)
                 } else if (e.key === 'Escape') {

@@ -42,11 +42,29 @@ export default function JobAnalyzerPage() {
         <button className={activeTabs.has('job') ? 'active' : ''} onClick={() => toggleTab('job')}>Job Posting</button>
         <button className={activeTabs.has('cover') ? 'active' : ''} onClick={() => toggleTab('cover')}>Cover Letter</button>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${gridCols}, 1fr)`, gap: '8px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${gridCols}, 1fr)`, gap: '8px', height: 'calc(100vh - 100px)', overflow: 'hidden' }}>
         {activeTabList.map(tab => {
-          if (tab === 'paragraphs') return <div key={tab} className="col"><ParagraphGroups /></div>
-          if (tab === 'job') return <div key={tab} className="col"><JobPostingEditor /></div>
-          if (tab === 'cover') return <div key={tab} className="col"><CoverLetterEditor /></div>
+          if (tab === 'paragraphs') return (
+            <div key={tab} className="col" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                <ParagraphGroups />
+              </div>
+            </div>
+          )
+          if (tab === 'job') return (
+            <div key={tab} className="col" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                <JobPostingEditor />
+              </div>
+            </div>
+          )
+          if (tab === 'cover') return (
+            <div key={tab} className="col" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                <CoverLetterEditor />
+              </div>
+            </div>
+          )
           return null
         })}
       </div>

@@ -32,25 +32,27 @@ export default function JobDetailPage({ jobId, onBack }: { jobId: string | null;
   const job = useMemo(() => state.jobs.find(j => j.id === jobId) || null, [state.jobs, jobId])
   const [showStatusMenu, setShowStatusMenu] = useState(false)
   const [showOfficeMenu, setShowOfficeMenu] = useState(false)
-  const [showEditLink, setShowEditLink] = useState(false)
+  const [showAddLink, setShowAddLink] = useState(false)
+  const [newLinkUrl, setNewLinkUrl] = useState('')
+  const [newLinkPreview, setNewLinkPreview] = useState('')
   const [fillError, setFillError] = useState<string | null>(null)
   const [fillSuccess, setFillSuccess] = useState(false)
   const statusBtnRef = useRef<HTMLButtonElement>(null)
   const officeBtnRef = useRef<HTMLButtonElement>(null)
   const statusMenuRef = useRef<HTMLDivElement>(null)
   const officeMenuRef = useRef<HTMLDivElement>(null)
-  const linkBtnRef = useRef<HTMLButtonElement | HTMLAnchorElement>(null)
-  const linkPopupRef = useRef<HTMLDivElement>(null)
+  const addLinkBtnRef = useRef<HTMLButtonElement>(null)
+  const addLinkPopupRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const closeOnOutside = (e: MouseEvent) => {
       const t = e.target as Element
       const clickedInStatus = !!(statusBtnRef.current && statusBtnRef.current.contains(t)) || !!(statusMenuRef.current && statusMenuRef.current.contains(t))
       const clickedInOffice = !!(officeBtnRef.current && officeBtnRef.current.contains(t)) || !!(officeMenuRef.current && officeMenuRef.current.contains(t))
-      const clickedInLink = !!(linkBtnRef.current && linkBtnRef.current.contains(t)) || !!(linkPopupRef.current && linkPopupRef.current.contains(t))
+      const clickedInLink = !!(addLinkBtnRef.current && addLinkBtnRef.current.contains(t)) || !!(addLinkPopupRef.current && addLinkPopupRef.current.contains(t))
       if (!clickedInStatus) setShowStatusMenu(false)
       if (!clickedInOffice) setShowOfficeMenu(false)
-      if (!clickedInLink) setShowEditLink(false)
+      if (!clickedInLink) setShowAddLink(false)
     }
     document.addEventListener('mousedown', closeOnOutside)
     return () => document.removeEventListener('mousedown', closeOnOutside)
@@ -78,6 +80,7 @@ export default function JobDetailPage({ jobId, onBack }: { jobId: string | null;
         if (data.title) filteredData.title = data.title
         if (data.company) filteredData.company = data.company
         if (data.location) filteredData.location = data.location
+        if (data.officeLocation) filteredData.officeLocation = data.officeLocation
         if (data.description) filteredData.description = data.description
         if (data.recruiter) filteredData.recruiter = data.recruiter
         if (data.link) filteredData.link = data.link
@@ -153,7 +156,7 @@ export default function JobDetailPage({ jobId, onBack }: { jobId: string | null;
       </div>
 
       {/* Office location, Link, and Status - in a flex row */}
-      <div className="d-flex flex-wrap gap-2 align-items-start mb-3">
+      <div className="d-flex flex-wrap gap-2 align-items-center mb-3">
         {/* Office location */}
         <div className="d-flex align-items-center gap-2" style={{ position: 'relative' }}>
           <button
@@ -204,77 +207,6 @@ export default function JobDetailPage({ jobId, onBack }: { jobId: string | null;
           )}
         </div>
 
-        {/* Link */}
-        <div className="d-flex align-items-center gap-2">
-          {job.link ? (
-            <>
-              <a
-                ref={linkBtnRef as any}
-                className="detail-btn"
-                href={job.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={job.link}
-              >
-                🌐 Open Link
-              </a>
-              <button ref={linkBtnRef as any} className="detail-btn" onClick={() => setShowEditLink(true)} title="Edit link">✏️ Edit</button>
-            </>
-          ) : (
-            <button ref={linkBtnRef as any} className="detail-btn" onClick={() => setShowEditLink(true)} title="Add link">➕ Add Link</button>
-          )}
-          {showEditLink && linkBtnRef.current && (() => {
-            const rect = linkBtnRef.current.getBoundingClientRect()
-            let left = rect.left
-            let top = rect.bottom + 6
-            const popupW = 320
-            const popupH = 120
-            if (left + popupW > window.innerWidth - 8) left = Math.max(8, window.innerWidth - popupW - 8)
-            if (top + popupH > window.innerHeight - 8) top = Math.max(8, rect.top - popupH - 6)
-            let temp = job.link || ''
-            return (
-              <div
-                ref={linkPopupRef}
-                style={{
-                  position: 'fixed',
-                  top,
-                  left,
-                  background: 'var(--panel-bg)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 8,
-                  padding: 10,
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                  zIndex: 1000,
-                  minWidth: popupW,
-                }}
-              >
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input
-                    defaultValue={job.link}
-                    placeholder="https://..."
-                    className="form-control"
-                    style={{ flex: 1 }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        const val = (e.currentTarget as HTMLInputElement).value
-                        update({ link: val }); setShowEditLink(false)
-                      } else if (e.key === 'Escape') {
-                        setShowEditLink(false)
-                      }
-                    }}
-                  />
-                  <button className="btn btn-primary btn-sm" onClick={() => {
-                    const input = (linkPopupRef.current?.querySelector('input') as HTMLInputElement)
-                    const val = input?.value || ''
-                    update({ link: val }); setShowEditLink(false)
-                  }}>Save</button>
-                  <button className="btn btn-outline-secondary btn-sm" onClick={() => setShowEditLink(false)}>Cancel</button>
-                </div>
-              </div>
-            )
-          })()}
-        </div>
-
         {/* Status */}
         <div className="d-flex align-items-center gap-2">
           <button
@@ -317,6 +249,131 @@ export default function JobDetailPage({ jobId, onBack }: { jobId: string | null;
               })}
             </div>
           )}
+        </div>
+
+        {/* Links */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+          {job.links && job.links.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+              {job.links.map(link => (
+                <div key={link.id} style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', background: 'var(--panel-bg)', border: '1px solid var(--border)', borderRadius: '4px', padding: '2px 6px' }}>
+                  <a
+                    className="detail-btn"
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={link.url}
+                    style={{ textDecoration: 'none', fontSize: '13px' }}
+                  >
+                    🌐 {link.previewText || 'Open Link'}
+                  </a>
+                  <button
+                    onClick={() => actions.removeJobLink(job.id, link.id)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--muted)',
+                      cursor: 'pointer',
+                      padding: '0 4px',
+                      fontSize: '14px',
+                    }}
+                    title="Remove link"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div>
+            <button 
+              ref={addLinkBtnRef}
+              className="detail-btn" 
+              onClick={() => setShowAddLink(true)} 
+              title="Add link"
+            >
+              ➕ Add Link
+            </button>
+            {showAddLink && addLinkBtnRef.current && (() => {
+              const rect = addLinkBtnRef.current!.getBoundingClientRect()
+              let left = rect.left
+              let top = rect.bottom + 6
+              const popupW = 350
+              const popupH = 150
+              if (left + popupW > window.innerWidth - 8) left = Math.max(8, window.innerWidth - popupW - 8)
+              if (top + popupH > window.innerHeight - 8) top = Math.max(8, rect.top - popupH - 6)
+              return (
+                <div
+                  ref={addLinkPopupRef}
+                  style={{
+                    position: 'fixed',
+                    top,
+                    left,
+                    background: 'var(--panel-bg)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 8,
+                    padding: 10,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    zIndex: 1000,
+                    minWidth: popupW,
+                  }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    
+                    <input
+                      value={newLinkPreview}
+                      onChange={(e) => setNewLinkPreview(e.target.value)}
+                      placeholder="Preview text (optional)"
+                      className="form-control"
+                    />
+
+                    <input
+                      value={newLinkUrl}
+                      onChange={(e) => setNewLinkUrl(e.target.value)}
+                      placeholder="https://..."
+                      className="form-control"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && newLinkUrl.trim()) {
+                          actions.addJobLink(job.id, newLinkUrl, newLinkPreview || undefined)
+                          setNewLinkUrl('')
+                          setNewLinkPreview('')
+                          setShowAddLink(false)
+                        } else if (e.key === 'Escape') {
+                          setShowAddLink(false)
+                        }
+                      }}
+                    />
+
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                      <button 
+                        className="btn btn-primary btn-sm" 
+                        onClick={() => {
+                          if (newLinkUrl.trim()) {
+                            actions.addJobLink(job.id, newLinkUrl, newLinkPreview || undefined)
+                            setNewLinkUrl('')
+                            setNewLinkPreview('')
+                            setShowAddLink(false)
+                          }
+                        }}
+                      >
+                        Add
+                      </button>
+                      <button 
+                        className="btn btn-outline-secondary btn-sm" 
+                        onClick={() => {
+                          setNewLinkUrl('')
+                          setNewLinkPreview('')
+                          setShowAddLink(false)
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
+          </div>
         </div>
       </div>
 

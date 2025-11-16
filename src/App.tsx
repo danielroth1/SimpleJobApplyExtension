@@ -44,7 +44,7 @@ export default function App() {
         selectedJobId={currentPage === 'job-detail' ? selectedJobId : undefined}
         showTopBarControls={showTopBar}
       />
-      <div className="page-content">
+      <div className={`page-content ${currentPage === 'job-analyzer' ? 'no-scroll' : ''}`}>
         {page}
       </div>
     </AppStateProvider>

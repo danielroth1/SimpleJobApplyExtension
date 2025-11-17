@@ -3,22 +3,7 @@ import { useAppState } from '@/state/AppStateContext'
 import { Job, JobStatus, OfficeLocation } from '@/state/types'
 import ModalPrompt from '@/components/ModalPrompt'
 import RichTextEditor from '@/components/RichTextEditor'
-
-const STATUS_COLORS: Record<JobStatus, string> = {
-  open: '#94a3b8',
-  applied: '#fbbf24',
-  rejected: '#ef4444',
-  interview: '#f97316',
-  accepted: '#10b981',
-}
-
-const STATUS_LABELS: Record<JobStatus, string> = {
-  open: 'Open',
-  applied: 'Applied',
-  rejected: 'Rejected',
-  interview: 'Interview',
-  accepted: 'Accepted',
-}
+import { JobStatusBadge, STATUS_COLORS, STATUS_LABELS } from '@/components/JobStatusControl'
 
 const OFFICE_OPTIONS: { value: OfficeLocation; label: string; icon: string }[] = [
   { value: 'on-site', label: 'On site', icon: '🏢' },
@@ -209,46 +194,10 @@ export default function JobDetailPage({ jobId, onBack }: { jobId: string | null;
 
         {/* Status */}
         <div className="d-flex align-items-center gap-2">
-          <button
-            ref={statusBtnRef}
-            className="job-status-badge"
-            style={{ backgroundColor: STATUS_COLORS[job.status] }}
-            onClick={() => setShowStatusMenu(v => !v)}
-            title="Change status"
-          >
-            {STATUS_LABELS[job.status]} ▾
-          </button>
-          {showStatusMenu && statusBtnRef.current && (
-            <div
-              ref={statusMenuRef}
-              style={{
-                position: 'fixed',
-                top: statusBtnRef.current.getBoundingClientRect().bottom + 6,
-                left: statusBtnRef.current.getBoundingClientRect().left,
-                background: 'var(--panel-bg)',
-                border: '1px solid var(--border)',
-                borderRadius: 8,
-                padding: 8,
-                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                zIndex: 1000,
-                minWidth: 200,
-              }}
-            >
-              {Object.keys(STATUS_LABELS).map((k) => {
-                const s = k as JobStatus
-                return (
-                  <button
-                    key={s}
-                    className="context-menu-item status-menu-item"
-                    onClick={() => { update({ status: s }); setShowStatusMenu(false) }}
-                  >
-                    <span className="status-color-dot" style={{ background: STATUS_COLORS[s] }} />
-                    <span>{STATUS_LABELS[s]}</span>
-                  </button>
-                )
-              })}
-            </div>
-          )}
+          <JobStatusBadge
+            status={job.status}
+            onChange={(s) => update({ status: s })}
+          />
         </div>
 
         {/* Links */}

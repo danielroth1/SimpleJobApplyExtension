@@ -228,6 +228,7 @@ export default function SettingsPage() {
           </p>
         </div>
 
+
         {/* Debug Mode */}
         <div className="setting-item" style={{ 
           display: 'flex', 

@@ -5,8 +5,9 @@ import CoverLetterEditor from '../components/CoverLetterEditor'
 import { useAppState } from '../state/AppStateContext'
 
 export default function JobAnalyzerPage() {
-  const { state } = useAppState()
+  const { state, actions } = useAppState()
   const [activeTabs, setActiveTabs] = useState<Set<'paragraphs' | 'job' | 'cover'>>(new Set(['paragraphs']))
+  const isCoverLetterVisible = activeTabs.has('cover')
 
   // Apply dark mode class to body
   useEffect(() => {
@@ -27,6 +28,10 @@ export default function JobAnalyzerPage() {
         }
       } else {
         next.add(tab)
+        // Auto-update cover letter when it becomes visible
+        if (tab === 'cover') {
+          actions.generateCoverLetter();
+        }
       }
       return next
     })
@@ -47,7 +52,7 @@ export default function JobAnalyzerPage() {
           if (tab === 'paragraphs') return (
             <div key={tab} className="col" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               <div style={{ flex: 1, overflowY: 'auto' }}>
-                <ParagraphGroups />
+                <ParagraphGroups isCoverLetterVisible={isCoverLetterVisible} />
               </div>
             </div>
           )

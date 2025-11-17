@@ -7,7 +7,7 @@ import { CSS } from '@dnd-kit/utilities'
 import KeywordContextMenu from './KeywordContextMenu'
 import RichTextEditor from './RichTextEditor'
 
-export default function ParagraphItem({ paragraph, colorIndex }: { paragraph: Paragraph, colorIndex: number }) {
+export default function ParagraphItem({ paragraph, colorIndex, isCoverLetterVisible = false }: { paragraph: Paragraph, colorIndex: number, isCoverLetterVisible?: boolean }) {
   const { actions, state } = useAppState()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [keywordInput, setKeywordInput] = useState('')
@@ -121,7 +121,6 @@ export default function ParagraphItem({ paragraph, colorIndex }: { paragraph: Pa
               title={paragraph.userPickedColor ? `Change color` : 'Assign color'}
               onClick={() => setShowColorMenu(v => !v)}
             >🎨</button>
-            <button className={`toggle ${paragraph.included ? 'active' : ''}`} title="Included in cover letter" onClick={() => actions.updateParagraph(paragraph.id, { included: !paragraph.included })}>✓</button>
             <button className={`toggle ${paragraph.autoInclude ? 'active' : ''}`} title="Always include in cover letter" onClick={() => actions.updateParagraph(paragraph.id, { autoInclude: !paragraph.autoInclude })}>★</button>
             <button className={`toggle no-break ${paragraph.noLineBreak ? 'active' : ''}`} title="Merge with paragraph below" onClick={() => actions.updateParagraph(paragraph.id, { noLineBreak: !paragraph.noLineBreak })}>⏎</button>
             <button ref={deleteButtonRef} className="toggle delete-btn" title="Delete paragraph" onClick={() => setShowDeleteConfirm(true)}>🗑</button>
@@ -129,10 +128,11 @@ export default function ParagraphItem({ paragraph, colorIndex }: { paragraph: Pa
         )}
       </div>
       <div className="paragraph-main">
-        {/* Top bar keywords */}
-        <div 
-          className="keywords" 
-          style={{ borderColor: color }}
+        {/* Top bar: keywords + include toggle */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div 
+            className="keywords" 
+            style={{ borderColor: color, flex: 1 }}
           onDragOver={(e) => { e.preventDefault() }}
           onDrop={(e) => {
             e.preventDefault()
@@ -275,6 +275,18 @@ export default function ParagraphItem({ paragraph, colorIndex }: { paragraph: Pa
             >
               + Add
             </button>
+          )}
+          </div>
+          {isCoverLetterVisible && (
+            <button 
+              className={`toggle ${paragraph.included ? 'active' : ''}`} 
+              title="Included in cover letter" 
+              onClick={() => {
+                actions.updateParagraph(paragraph.id, { included: !paragraph.included })
+                // Auto-update cover letter when include status changes
+                actions.generateCoverLetter();
+              }}
+            >✓</button>
           )}
         </div>
         {/* Rich text editor - hidden when collapsed */}

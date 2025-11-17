@@ -594,12 +594,6 @@ body.dark-mode textarea::placeholder {
   transition: all 0.15s ease;
 }
 
-.job-preview:hover {
-  transform: translateX(3px);
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
-  border-color: var(--accent);
-}
-
 .job-preview.dragging:hover,
 .job-preview.dialog-open:hover {
   transform: none;

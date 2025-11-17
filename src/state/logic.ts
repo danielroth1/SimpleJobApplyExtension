@@ -192,7 +192,7 @@ export function generateCoverLetterHTML(paragraphs: Paragraph[], highlightEnable
   }
 
   // Only include paragraphs marked included/autoInclude; keep original index for color selection
-  const included = paragraphs.map((p, idx) => ({ p, idx })).filter(x => x.p.included || x.p.autoInclude)
+  const included = paragraphs.map((p, idx) => ({ p, idx })).filter(x => x.p.included)
   const outputBlocks: string[] = []
 
   // Walk through included paragraphs, merging runs where noLineBreak is set

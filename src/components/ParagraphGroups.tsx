@@ -17,7 +17,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 
-export default function ParagraphGroups() {
+export default function ParagraphGroups({ isCoverLetterVisible = false }: { isCoverLetterVisible?: boolean }) {
   const { state, actions } = useAppState()
   const [insertionIndex, setInsertionIndex] = useState<number | null>(null)
   const [searchText, setSearchText] = useState('')
@@ -242,6 +242,7 @@ export default function ParagraphGroups() {
                   <ParagraphItem 
                     paragraph={p} 
                     colorIndex={originalIndex}
+                    isCoverLetterVisible={isCoverLetterVisible}
                   />
                 </React.Fragment>
               )

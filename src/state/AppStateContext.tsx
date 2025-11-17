@@ -42,7 +42,6 @@ const defaultState: AppState = {
     },
     { 
       domain: 'indeed.com', 
-      jobDescription: '[data-test-id="job-description"]',
       description: 'Indeed job postings' 
     },
   ],
@@ -189,6 +188,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const deleteParagraph = useCallback((paragraphId: string) => {
     const operation = new RemoveParagraphOperation(paragraphId)
     executeOperation(operation)
+    // Auto-update cover letter when paragraph is deleted
+    setTimeout(() => {
+      setState(prev => ({ ...prev, coverLetterHTML: generateCoverLetterHTML(prev.paragraphs.filter(p => p.id !== paragraphId), prev.highlightInCoverLetter, prev.darkMode, prev.currentRecruiterName) }))
+    }, 50)
   }, [])
 
   // Add a keyword to a paragraph without auto-assigning colors.
@@ -908,6 +911,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       prefillNewJobs: !prev.prefillNewJobs
     }))
   }, [])
+
 
   const extractJobIdFromUrl = useCallback(async (): Promise<string | null> => {
     const api = (window as any).browser ?? (window as any).chrome

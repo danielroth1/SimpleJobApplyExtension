@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useAppState } from '../state/AppStateContext'
-import { Job, JobStatus } from '../state/types'
+import { Job, JobStatus, OfficeLocation } from '../state/types'
 import {
   DndContext,
   closestCenter,
@@ -17,22 +17,7 @@ import {
 } from '@dnd-kit/sortable'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-
-const STATUS_COLORS: Record<JobStatus, string> = {
-  open: '#94a3b8', // slate
-  applied: '#fbbf24', // yellow
-  rejected: '#ef4444', // red
-  interview: '#f97316', // orange
-  accepted: '#10b981', // green
-}
-
-const STATUS_LABELS: Record<JobStatus, string> = {
-  open: 'Open',
-  applied: 'Applied',
-  rejected: 'Rejected',
-  interview: 'Interview',
-  accepted: 'Accepted',
-}
+import { JobStatusBadge, STATUS_LABELS } from '@/components/JobStatusControl'
 
 export default function JobsPage({ onOpenJob }: { onOpenJob?: (id: string) => void }) {
   const { state, actions } = useAppState()
@@ -107,6 +92,7 @@ export default function JobsPage({ onOpenJob }: { onOpenJob?: (id: string) => vo
 function JobItem({ job, onOpen }: { job: Job; onOpen?: () => void }) {
   const { actions } = useAppState()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deletePopupPosition, setDeletePopupPosition] = useState({ top: 0, left: 0 })
   const deleteButtonRef = useRef<HTMLButtonElement>(null)
   const deletePopupRef = useRef<HTMLDivElement>(null)
 
@@ -117,6 +103,36 @@ function JobItem({ job, onOpen }: { job: Job; onOpen?: () => void }) {
     opacity: isDragging ? 0.6 : 1,
     scale: isDragging ? '1' : undefined,
   } as React.CSSProperties
+
+  // Calculate delete popup position when showing
+  useEffect(() => {
+    if (showDeleteConfirm && deleteButtonRef.current) {
+      const rect = deleteButtonRef.current.getBoundingClientRect()
+      const popupWidth = 260
+      const popupHeight = 130
+      
+      // Start with position to the right of the button
+      let left = rect.right + 8
+      let top = rect.top
+      
+      // Adjust if popup would overflow viewport
+      if (left + popupWidth > window.innerWidth - 8) {
+        // Position to the left of the button instead
+        left = rect.left - popupWidth - 8
+      }
+      
+      if (top + popupHeight > window.innerHeight - 8) {
+        // Move up if needed
+        top = window.innerHeight - popupHeight - 8
+      }
+      
+      // Ensure minimum distance from edges
+      left = Math.max(8, left)
+      top = Math.max(8, top)
+      
+      setDeletePopupPosition({ top, left })
+    }
+  }, [showDeleteConfirm])
 
   // Close delete popup when clicking outside
   useEffect(() => {
@@ -135,20 +151,26 @@ function JobItem({ job, onOpen }: { job: Job; onOpen?: () => void }) {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [showDeleteConfirm])
 
+  const deleteRect = deleteButtonRef?.current?.getBoundingClientRect();
+
   return (
     <div ref={setNodeRef} style={style} className={`job-preview ${isDragging ? 'dragging' : ''} ${showDeleteConfirm ? 'dialog-open' : ''}`} onClick={onOpen}>
       <button className="job-drag-handle" title="Drag to reorder" {...attributes} {...listeners} onClick={(e) => e.stopPropagation()}>⠿</button>
       <div className="job-preview-content">
         <div className="job-preview-title">{job.title || 'Untitled Job'}</div>
-        <div className="job-preview-company">{job.company || 'No Company'}</div>
+        <div className="job-preview-company">
+          {job.company || 'No Company'}
+          {(job.officeLocation || job.location) && (
+            <span style={{ marginLeft: 8, color: 'var(--muted)', fontSize: '12px' }}>
+              {job.officeLocation && `• ${job.officeLocation}`}{job.officeLocation && job.location && ' · '}{job.location}
+            </span>
+          )}
+        </div>
       </div>
-      <span
-        className="job-status-badge"
-        style={{ backgroundColor: STATUS_COLORS[job.status], display: 'inline-block' }}
-        title={`Status: ${STATUS_LABELS[job.status]}`}
-      >
-        {STATUS_LABELS[job.status]}
-      </span>
+      <JobStatusBadge
+        status={job.status}
+        onChange={(s) => actions.updateJob(job.id, { status: s })}
+      />
       <button
         ref={deleteButtonRef}
         className="job-preview-delete"
@@ -158,32 +180,14 @@ function JobItem({ job, onOpen }: { job: Job; onOpen?: () => void }) {
         🗑️
       </button>
 
-      {showDeleteConfirm && deleteButtonRef.current && (() => {
-        const rect = deleteButtonRef.current.getBoundingClientRect()
-        const container = document.querySelector('.jobs-page') as HTMLElement | null
-        const cRect = container?.getBoundingClientRect()
-        const containerLeft = cRect ? cRect.left : 0
-        const containerTop = cRect ? cRect.top : 0
-        let left = rect.right - containerLeft + 8
-        let top = rect.top - containerTop
-        const popupW = 260
-        const popupH = 130
-        const containerW = cRect ? cRect.width : window.innerWidth
-        const containerH = cRect ? cRect.height : window.innerHeight
-        if (left + popupW > containerW - 8) {
-          left = Math.max(8, rect.left - containerLeft - popupW - 8)
-        }
-        if (top + popupH > containerH - 8) {
-          top = Math.max(8, containerH - popupH - 8)
-        }
-        return (
+      {showDeleteConfirm && (
         <div
           ref={deletePopupRef}
           onClick={(e) => e.stopPropagation()}
           style={{
-            position: 'absolute',
-            top,
-            left,
+            position: 'fixed',
+            top: (deleteRect?.bottom ?? 0) + 8,
+            right: window.innerWidth - (deleteRect?.right ?? 0),
             background: 'var(--panel-bg)',
             border: '1px solid var(--border)',
             borderRadius: '8px',
@@ -227,8 +231,7 @@ function JobItem({ job, onOpen }: { job: Job; onOpen?: () => void }) {
             </button>
           </div>
         </div>
-        )
-      })()}
+      )}
     </div>
   )
 }

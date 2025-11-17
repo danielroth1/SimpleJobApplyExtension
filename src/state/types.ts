@@ -26,7 +26,7 @@ export type Paragraph = {
   lastMatchedKeywords?: string[]
 }
 
-export type JobStatus = 'open' | 'applied' | 'rejected' | 'interview' | 'accepted'
+export type JobStatus = 'open' | 'applied' | 'rejected' | 'interview' | 'accepted' | 'withdrawn'
 
 export type OfficeLocation = 'hybrid' | 'on-site' | 'remote' | 'custom'
 

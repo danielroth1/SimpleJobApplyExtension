@@ -9,15 +9,6 @@ export default function JobAnalyzerPage() {
   const [activeTabs, setActiveTabs] = useState<Set<'paragraphs' | 'job' | 'cover'>>(new Set(['paragraphs']))
   const isCoverLetterVisible = activeTabs.has('cover')
 
-  // Apply dark mode class to body
-  useEffect(() => {
-    if (state.darkMode) {
-      document.body.classList.add('dark-mode')
-    } else {
-      document.body.classList.remove('dark-mode')
-    }
-  }, [state.darkMode])
-
   const toggleTab = (tab: 'paragraphs' | 'job' | 'cover') => {
     setActiveTabs(prev => {
       const next = new Set(prev)

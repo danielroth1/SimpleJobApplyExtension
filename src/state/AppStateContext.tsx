@@ -152,6 +152,15 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(t)
   }, [state.siteRules])
 
+  // Apply dark mode class to body whenever darkMode changes
+  useEffect(() => {
+    if (state.darkMode) {
+      document.body.classList.add('dark-mode')
+    } else {
+      document.body.classList.remove('dark-mode')
+    }
+  }, [state.darkMode])
+
   // Reassign colors when forceUniqueColors is enabled
   useEffect(() => {
     

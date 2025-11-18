@@ -235,7 +235,28 @@ export default function CombinePDFsPage() {
     try {
       const mergedPdf = await PDFDocument.create()
 
+      // First pass: determine maximum width from all PDFs
+      let maxWidth = 0
       for (const item of state.pdfItems) {
+        if (item.type === 'pdf') {
+          const response = await fetch(item.dataUrl)
+          const arrayBuffer = await response.arrayBuffer()
+          const pdf = await PDFDocument.load(arrayBuffer)
+          const pages = pdf.getPages()
+          for (const page of pages) {
+            const { width } = page.getSize()
+            maxWidth = Math.max(maxWidth, width)
+          }
+        }
+      }
+      
+      // If no PDFs, use a default A4 width (595 points)
+      if (maxWidth === 0) {
+        maxWidth = 595
+      }
+      
+      for (const item of state.pdfItems) {
+        
         if (item.type === 'pdf') {
           let response = await fetch(item.dataUrl)
           let arrayBuffer = await response.arrayBuffer()
@@ -249,7 +270,16 @@ export default function CombinePDFsPage() {
           
           const pdf = await PDFDocument.load(arrayBuffer)
           const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices())
-          copiedPages.forEach((page) => mergedPdf.addPage(page))
+          
+          // Scale pages to match maxWidth
+          copiedPages.forEach((page) => {
+            const { width, height } = page.getSize()
+            if (width !== maxWidth) {
+              const scale = maxWidth / width
+              page.scale(scale, scale)
+            }
+            mergedPdf.addPage(page)
+          })
         } else if (item.type === 'image') {
           let imageDataUrl = item.dataUrl
           
@@ -276,12 +306,17 @@ export default function CombinePDFsPage() {
             continue
           }
           
-          const page = mergedPdf.addPage([image.width, image.height])
+          // Scale image to match maxWidth while preserving aspect ratio
+          const scale = maxWidth / image.width
+          const scaledWidth = maxWidth
+          const scaledHeight = image.height * scale
+          
+          const page = mergedPdf.addPage([scaledWidth, scaledHeight])
           page.drawImage(image, {
             x: 0,
             y: 0,
-            width: image.width,
-            height: image.height,
+            width: scaledWidth,
+            height: scaledHeight,
           })
         }
       }
